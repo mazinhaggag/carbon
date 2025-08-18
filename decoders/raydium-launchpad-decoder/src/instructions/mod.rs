@@ -13,6 +13,8 @@ pub mod create_platform_config;
 pub mod create_vesting_account;
 pub mod create_vesting_event;
 pub mod initialize;
+pub mod initialize_v2;
+pub mod initialize_with_token_2022;
 pub mod migrate_to_amm;
 pub mod migrate_to_cpswap;
 pub mod pool_create_event;
@@ -43,6 +45,8 @@ pub enum RaydiumLaunchpadInstruction {
     CreatePlatformConfig(create_platform_config::CreatePlatformConfig),
     CreateVestingAccount(create_vesting_account::CreateVestingAccount),
     Initialize(initialize::Initialize),
+    InitializeV2(initialize_v2::InitializeV2),
+    InitializeWithToken2022(initialize_with_token_2022::InitializeWithToken2022),
     MigrateToAmm(migrate_to_amm::MigrateToAmm),
     MigrateToCpswap(migrate_to_cpswap::MigrateToCpswap),
     SellExactIn(sell_exact_in::SellExactIn),
@@ -77,6 +81,8 @@ impl carbon_core::instruction::InstructionDecoder<'_> for RaydiumLaunchpadDecode
             RaydiumLaunchpadInstruction::CreatePlatformConfig => create_platform_config::CreatePlatformConfig,
             RaydiumLaunchpadInstruction::CreateVestingAccount => create_vesting_account::CreateVestingAccount,
             RaydiumLaunchpadInstruction::Initialize => initialize::Initialize,
+            RaydiumLaunchpadInstruction::InitializeV2 => initialize_v2::InitializeV2,
+            RaydiumLaunchpadInstruction::InitializeWithToken2022 => initialize_with_token_2022::InitializeWithToken2022,
             RaydiumLaunchpadInstruction::MigrateToAmm => migrate_to_amm::MigrateToAmm,
             RaydiumLaunchpadInstruction::MigrateToCpswap => migrate_to_cpswap::MigrateToCpswap,
             RaydiumLaunchpadInstruction::SellExactIn => sell_exact_in::SellExactIn,

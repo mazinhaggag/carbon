@@ -38,3 +38,7 @@ pub mod vesting_record;
 pub use vesting_record::*;
 pub mod vesting_schedule;
 pub use vesting_schedule::*;
+pub mod amm_fee_on;
+pub use amm_fee_on::*;
+pub mod transfer_fee_extension_params;
+pub use transfer_fee_extension_params::*;
