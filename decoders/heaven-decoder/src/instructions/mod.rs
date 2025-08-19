@@ -41,7 +41,7 @@ pub mod creating_liquidity_pool_event;
 pub mod trade_event;
 pub mod user_defined_event;
 
-#[derive(carbon_core::InstructionType, serde::Serialize, serde::Deserialize, PartialEq, Eq, Debug, Clone, Hash)]
+#[derive(carbon_core::InstructionType, serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
 pub enum HeavenInstruction {
     AdminBorrowSol(admin_borrow_sol::AdminBorrowSol),
     AdminClaimMsol(admin_claim_msol::AdminClaimMsol),

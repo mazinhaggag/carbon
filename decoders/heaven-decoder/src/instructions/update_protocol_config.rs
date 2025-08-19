@@ -4,14 +4,14 @@ use super::super::types::*;
 use carbon_core::{CarbonDeserialize, borsh};
 
 
-#[derive(CarbonDeserialize, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Hash)]
+#[derive(CarbonDeserialize, Debug, serde::Serialize, serde::Deserialize, PartialEq, Clone)]
 #[carbon(discriminator = "0xc5617b36dda80b87")]
 pub struct UpdateProtocolConfig{
     pub version: u16,
     pub params: ProtocolConfigParams,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UpdateProtocolConfigInstructionAccounts {
     pub owner: solana_pubkey::Pubkey,
     pub protocol_config_state: solana_pubkey::Pubkey,

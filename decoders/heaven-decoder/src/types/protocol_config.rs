@@ -4,7 +4,7 @@ use super::*;
 use carbon_core::{CarbonDeserialize, borsh};
 
 
-#[derive(CarbonDeserialize, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Clone, Hash)]
+#[derive(CarbonDeserialize, Debug, serde::Serialize, serde::Deserialize, PartialEq, Clone)]
 pub struct ProtocolConfig {
     pub create_pool_fee: u64,
     pub initial_token_b_amount: f64,
