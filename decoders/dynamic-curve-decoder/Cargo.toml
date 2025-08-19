@@ -1,5 +1,5 @@
 [package]
-name = "dynamic-curve-decoder"
+name = "carbon-dynamic-curve-decoder"
 version = "0.9.1"
 edition = { workspace = true }
 
