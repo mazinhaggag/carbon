@@ -11,3 +11,30 @@ pub struct TradeEvent{
     pub total_creator_trading_fees: u64,
     pub total_fee_paid: u64,
 }
+
+pub struct TradeEventInstructionAccounts {
+    pub liquidity_pool_state: solana_pubkey::Pubkey,
+    pub user: solana_pubkey::Pubkey,
+    pub protocol_config: solana_pubkey::Pubkey,
+}
+
+impl carbon_core::deserialize::ArrangeAccounts for TradeEvent {
+    type ArrangedAccounts = TradeEventInstructionAccounts;
+
+    fn arrange_accounts(accounts: &[solana_instruction::AccountMeta]) -> Option<Self::ArrangedAccounts> {
+        let [
+            liquidity_pool_state,
+            user,
+            protocol_config,
+            _remaining @ ..
+        ] = accounts else {
+            return None;
+        };
+ 
+        Some(TradeEventInstructionAccounts {
+            liquidity_pool_state: liquidity_pool_state.pubkey,
+            user: user.pubkey,
+            protocol_config: protocol_config.pubkey,
+        })
+    }
+}
