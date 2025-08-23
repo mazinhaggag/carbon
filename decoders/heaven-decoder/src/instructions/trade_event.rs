@@ -22,13 +22,7 @@ impl carbon_core::deserialize::ArrangeAccounts for TradeEvent {
     type ArrangedAccounts = TradeEventInstructionAccounts;
 
     fn arrange_accounts(accounts: &[solana_instruction::AccountMeta]) -> Option<Self::ArrangedAccounts> {
-        // TradeEvent can have 0 or 1 account
-        // When it has 0 accounts, we can't determine the pool
-        // When it has 1 account, it's the liquidity pool
-        if accounts.is_empty() {
-            // This is normal for event-only instructions
-            return None;
-        }
+        if accounts.is_empty() { return None; }
         
         Some(TradeEventInstructionAccounts {
             liquidity_pool_state: accounts[0].pubkey,
