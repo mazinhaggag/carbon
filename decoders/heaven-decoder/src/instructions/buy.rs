@@ -26,6 +26,8 @@ pub struct BuyInstructionAccounts {
     pub token_b_vault: solana_pubkey::Pubkey,
     pub protocol_config: solana_pubkey::Pubkey,
     pub instruction_sysvar_account_info: solana_pubkey::Pubkey,
+    pub oracle_program: solana_pubkey::Pubkey,
+    pub oracle_account: solana_pubkey::Pubkey,
 }
 
 impl carbon_core::deserialize::ArrangeAccounts for Buy {
@@ -47,6 +49,8 @@ impl carbon_core::deserialize::ArrangeAccounts for Buy {
             token_b_vault,
             protocol_config,
             instruction_sysvar_account_info,
+            oracle_program,
+            oracle_account,
             _remaining @ ..
         ] = accounts else {
             return None;
@@ -68,6 +72,8 @@ impl carbon_core::deserialize::ArrangeAccounts for Buy {
             token_b_vault: token_b_vault.pubkey,
             protocol_config: protocol_config.pubkey,
             instruction_sysvar_account_info: instruction_sysvar_account_info.pubkey,
+            oracle_program: oracle_program.pubkey,
+            oracle_account: oracle_account.pubkey,
         })
     }
 }
