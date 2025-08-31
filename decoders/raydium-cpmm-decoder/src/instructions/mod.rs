@@ -7,6 +7,7 @@ pub mod create_amm_config;
 pub mod deposit;
 pub mod initialize;
 pub mod lp_change_event;
+pub mod initialize_with_permission;
 pub mod swap_base_input;
 pub mod swap_base_output;
 pub mod swap_event;
@@ -33,6 +34,7 @@ pub enum RaydiumCpmmInstruction {
     Initialize(initialize::Initialize),
     Deposit(deposit::Deposit),
     Withdraw(withdraw::Withdraw),
+    InitializeWithPermission(initialize_with_permission::InitializeWithPermission),
     SwapBaseInput(swap_base_input::SwapBaseInput),
     SwapBaseOutput(swap_base_output::SwapBaseOutput),
     LpChangeEvent(lp_change_event::LpChangeEvent),
@@ -59,6 +61,7 @@ impl carbon_core::instruction::InstructionDecoder<'_> for RaydiumCpmmDecoder {
             RaydiumCpmmInstruction::Initialize => initialize::Initialize,
             RaydiumCpmmInstruction::Deposit => deposit::Deposit,
             RaydiumCpmmInstruction::Withdraw => withdraw::Withdraw,
+            RaydiumCpmmInstruction::InitializeWithPermission => initialize_with_permission::InitializeWithPermission,
             RaydiumCpmmInstruction::SwapBaseInput => swap_base_input::SwapBaseInput,
             RaydiumCpmmInstruction::SwapBaseOutput => swap_base_output::SwapBaseOutput,
             RaydiumCpmmInstruction::LpChangeEvent => lp_change_event::LpChangeEvent,

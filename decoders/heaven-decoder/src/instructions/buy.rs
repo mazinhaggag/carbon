@@ -35,8 +35,8 @@ impl carbon_core::deserialize::ArrangeAccounts for Buy {
 
     fn arrange_accounts(accounts: &[solana_instruction::AccountMeta]) -> Option<Self::ArrangedAccounts> {
         let [
-            token_a_program,
-            token_b_program,
+            token_a_program,  // Token-2022
+            token_b_program,  // Regular SPL Token
             associated_token_program,
             system_program,
             liquidity_pool_state,
