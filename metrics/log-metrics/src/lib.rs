@@ -81,20 +81,20 @@ impl Metrics for LogMetrics {
 
         let start = *self.start.read().await;
         let mut last_flush = self.last_flush.write().await;
-        let since_last_secs = last_flush.elapsed().as_secs();
+        let last_elapsed = last_flush.elapsed();
 
         // Snapshot counters/gauges/histograms for pretty printing
         let counters_snapshot = self.counters.read().await.clone();
         let gauges_snapshot = self.gauges.read().await.clone();
         let histograms_snapshot = self.histograms.read().await.clone();
 
-        // Header summary (compact)
+        // Header summary (original format)
         log::info!(
-            "{:02}:{:02}:{:02} (+{}s) | processed={} ({}%), ok={}, failed={} ({}%), queue={}, lat(ms) avg/min/max={}/{}/{}",
+            "{:02}:{:02}:{:02} (+{:?}) | {} processed ({}%), {} successful, {} failed ({}%), {} in queue, avg: {}ms, min: {}ms, max: {}ms",
             start.elapsed().as_secs() / 3600,
             (start.elapsed().as_secs() % 3600) / 60,
             start.elapsed().as_secs() % 60,
-            since_last_secs,
+            last_elapsed,
             updates_processed,
             if total_updates_received > 0 { (updates_processed * 100) / total_updates_received } else { 0 },
             updates_successful,
@@ -106,16 +106,9 @@ impl Metrics for LogMetrics {
             updates_processing_times_max
         );
 
-        // Pretty print counters on one line (sorted)
-        if !counters_snapshot.is_empty() {
-            let mut keys: Vec<_> = counters_snapshot.keys().cloned().collect();
-            keys.sort();
-            let line = keys
-                .into_iter()
-                .map(|k| format!("{}={}", k, counters_snapshot.get(&k).unwrap()))
-                .collect::<Vec<_>>()
-                .join(", ");
-            log::info!("events: {}", line);
+        // Print counters per line (original behavior)
+        for (k, v) in counters_snapshot.iter() {
+            log::info!("{}: {}", k, v);
         }
 
         // Datasource section: group by id suffix
