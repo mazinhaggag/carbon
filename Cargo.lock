@@ -1187,13 +1187,16 @@ dependencies = [
 name = "carbon-core"
 version = "0.9.1"
 dependencies = [
+ "ahash 0.8.12",
  "async-trait",
  "borsh 0.10.4",
  "bs58",
  "carbon-macros",
  "carbon-proc-macros",
  "carbon-test-utils",
+ "hashbrown 0.14.5",
  "log",
+ "once_cell",
  "serde",
  "serde_json",
  "solana-account",
@@ -3283,6 +3286,10 @@ name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash 0.8.12",
+ "allocator-api2",
+]
 
 [[package]]
 name = "hashbrown"

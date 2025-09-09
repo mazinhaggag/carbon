@@ -136,6 +136,7 @@ pub mod transaction;
 pub mod transformers;
 
 pub use borsh;
+pub use pipeline::get_datasource_last_slots;
 #[cfg(feature = "macros")]
 pub use carbon_macros::*;
 #[cfg(feature = "macros")]

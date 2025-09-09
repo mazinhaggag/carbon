@@ -66,53 +66,119 @@ impl Metrics for LogMetrics {
 
     async fn flush(&self) -> CarbonResult<()> {
         let mut updates_processing_times = self.updates_processing_times.write().await;
-
         let updates_processing_times_avg = if !updates_processing_times.is_empty() {
             updates_processing_times.iter().sum::<u64>() / updates_processing_times.len() as u64
-        } else {
-            0
-        };
+        } else { 0 };
         let updates_processing_times_min = *updates_processing_times.iter().min().unwrap_or(&0);
         let updates_processing_times_max = *updates_processing_times.iter().max().unwrap_or(&0);
 
-        let updates_received = self.updates_received.read().await;
-        let updates_queued = self.updates_queued.read().await;
+        let updates_received = *self.updates_received.read().await;
+        let updates_queued = *self.updates_queued.read().await;
+        let total_updates_received = updates_received + updates_queued;
+        let updates_successful = *self.updates_successful.read().await;
+        let updates_failed = *self.updates_failed.read().await;
+        let updates_processed = *self.updates_processed.read().await;
 
-        let total_updates_received = *updates_received + *updates_queued;
-
-        let updates_successful = self.updates_successful.read().await;
-        let updates_failed = self.updates_failed.read().await;
-        let updates_processed = self.updates_processed.read().await;
-
-        let start = self.start.read().await;
+        let start = *self.start.read().await;
         let mut last_flush = self.last_flush.write().await;
+        let since_last_secs = last_flush.elapsed().as_secs();
 
+        // Snapshot counters/gauges/histograms for pretty printing
+        let counters_snapshot = self.counters.read().await.clone();
+        let gauges_snapshot = self.gauges.read().await.clone();
+        let histograms_snapshot = self.histograms.read().await.clone();
+
+        // Header summary (compact)
         log::info!(
-            "{:02}:{:02}:{:02} (+{:?}) | {} processed ({}%), {} successful, {} failed ({}%), {} in queue, avg: {}ms, min: {}ms, max: {}ms",
+            "{:02}:{:02}:{:02} (+{}s) | processed={} ({}%), ok={}, failed={} ({}%), queue={}, lat(ms) avg/min/max={}/{}/{}",
             start.elapsed().as_secs() / 3600,
             (start.elapsed().as_secs() % 3600) / 60,
             start.elapsed().as_secs() % 60,
-            last_flush.elapsed(),
+            since_last_secs,
             updates_processed,
-            if total_updates_received > 0 {(*updates_processed * 100) / total_updates_received} else {0},
+            if total_updates_received > 0 { (updates_processed * 100) / total_updates_received } else { 0 },
             updates_successful,
             updates_failed,
-            if *updates_processed > 0 {(*updates_failed * 100) / *updates_processed} else {0},
+            if updates_processed > 0 { (updates_failed * 100) / updates_processed } else { 0 },
             updates_queued,
             updates_processing_times_avg,
             updates_processing_times_min,
             updates_processing_times_max
         );
 
-        for counter in self.counters.read().await.iter() {
-            log::info!("{}: {}", counter.0, counter.1);
+        // Pretty print counters on one line (sorted)
+        if !counters_snapshot.is_empty() {
+            let mut keys: Vec<_> = counters_snapshot.keys().cloned().collect();
+            keys.sort();
+            let line = keys
+                .into_iter()
+                .map(|k| format!("{}={}", k, counters_snapshot.get(&k).unwrap()))
+                .collect::<Vec<_>>()
+                .join(", ");
+            log::info!("events: {}", line);
         }
 
-        for gauge in self.gauges.read().await.iter() {
-            log::info!("{}: {}", gauge.0, gauge.1);
+        // Datasource section: group by id suffix
+        let mut datasource_ids: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for (k, _) in &gauges_snapshot {
+            if let Some(id) = k.strip_prefix("datasource_last_slot_") {
+                datasource_ids.insert(id.to_string());
+            }
+        }
+        if !datasource_ids.is_empty() {
+            // Compute totals for percentage formatting
+            let mut ids: Vec<_> = datasource_ids.into_iter().collect();
+            ids.sort();
+            let id_width = ids.iter().map(|s| s.len()).max().unwrap_or(0);
+            let total_5m: u64 = ids.iter().map(|id|
+                *gauges_snapshot.get(&format!("datasource_wins_5m_{}", id)).unwrap_or(&0.0) as u64
+            ).sum();
+            let total_1h: u64 = ids.iter().map(|id|
+                *gauges_snapshot.get(&format!("datasource_wins_1h_{}", id)).unwrap_or(&0.0) as u64
+            ).sum();
+            let total_6h: u64 = ids.iter().map(|id|
+                *gauges_snapshot.get(&format!("datasource_wins_6h_{}", id)).unwrap_or(&0.0) as u64
+            ).sum();
+
+            log::info!("datasources (share of first-arrival):");
+            for id in ids {
+                let w5m = *gauges_snapshot.get(&format!("datasource_wins_5m_{}", id)).unwrap_or(&0.0) as u64;
+                let w1h = *gauges_snapshot.get(&format!("datasource_wins_1h_{}", id)).unwrap_or(&0.0) as u64;
+                let w6h = *gauges_snapshot.get(&format!("datasource_wins_6h_{}", id)).unwrap_or(&0.0) as u64;
+
+                let p5 = if total_5m > 0 { (w5m * 100 / total_5m) } else { 0 } as u64;
+                let p1 = if total_1h > 0 { (w1h * 100 / total_1h) } else { 0 } as u64;
+                let p6 = if total_6h > 0 { (w6h * 100 / total_6h) } else { 0 } as u64;
+
+                log::info!(
+                    "{:width$} | 5m: {:>3}% | 1h: {:>3}% | 6h: {:>3}%",
+                    id,
+                    p5,
+                    p1,
+                    p6,
+                    width = id_width
+                );
+            }
         }
 
-        for histogram in self.histograms.read().await.iter() {
+        // Other gauges (non-datasource) on one line if any
+        let mut other_gauges: Vec<_> = gauges_snapshot
+            .iter()
+            .filter(|(k, _)| !k.starts_with("datasource_"))
+            .map(|(k, v)| (k.clone(), *v))
+            .collect();
+        if !other_gauges.is_empty() {
+            other_gauges.sort_by(|a, b| a.0.cmp(&b.0));
+            let line = other_gauges
+                .into_iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect::<Vec<_>>()
+                .join(", ");
+            log::info!("gauges: {}", line);
+        }
+
+        // Histograms: print compact aggregates
+        for (name, histogram_values) in histograms_snapshot.iter() {
             let histogram_values = histogram.1;
 
             let avg = if !histogram_values.is_empty() {
@@ -131,13 +197,7 @@ impl Metrics for LogMetrics {
                 .copied()
                 .unwrap_or(0.0);
 
-            log::info!(
-                "{} -> avg: {}, min: {}, max: {}",
-                histogram.0,
-                avg,
-                min,
-                max
-            );
+            log::info!("hist {}: avg={} min={} max={}", name, avg, min, max);
         }
 
         self.histograms.write().await.clear();
