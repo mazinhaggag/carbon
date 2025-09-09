@@ -179,7 +179,6 @@ impl Metrics for LogMetrics {
 
         // Histograms: print compact aggregates
         for (name, histogram_values) in histograms_snapshot.iter() {
-            let histogram_values = histogram.1;
 
             let avg = if !histogram_values.is_empty() {
                 histogram_values.iter().sum::<f64>() / histogram_values.len() as f64
