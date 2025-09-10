@@ -74,7 +74,6 @@ impl Metrics for LogMetrics {
 
         let updates_received = *self.updates_received.read().await;
         let updates_queued = *self.updates_queued.read().await;
-        let total_updates_received = updates_received + updates_queued;
         let updates_successful = *self.updates_successful.read().await;
         let updates_failed = *self.updates_failed.read().await;
         let updates_processed = *self.updates_processed.read().await;
@@ -88,7 +87,9 @@ impl Metrics for LogMetrics {
         let gauges_snapshot = self.gauges.read().await.clone();
         let histograms_snapshot = self.histograms.read().await.clone();
 
-        // Header summary (original format)
+        let processed_den = updates_processed + updates_queued;
+        let processed_pct = if processed_den > 0 { (updates_processed * 100) / processed_den } else { 0 };
+
         log::info!(
             "{:02}:{:02}:{:02} (+{:?}) | {} processed ({}%), {} successful, {} failed ({}%), {} in queue, avg: {}ms, min: {}ms, max: {}ms",
             start.elapsed().as_secs() / 3600,
@@ -96,7 +97,7 @@ impl Metrics for LogMetrics {
             start.elapsed().as_secs() % 60,
             last_elapsed,
             updates_processed,
-            if total_updates_received > 0 { (updates_processed * 100) / total_updates_received } else { 0 },
+            processed_pct,
             updates_successful,
             updates_failed,
             if updates_processed > 0 { (updates_failed * 100) / updates_processed } else { 0 },
