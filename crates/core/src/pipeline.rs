@@ -391,7 +391,14 @@ impl Pipeline {
 
     fn is_duplicate(&mut self, update: &Update) -> bool {
         let fresh = match update {
-            Update::Transaction(tx) => self.tx_dedupe.insert_if_fresh(tx.signature),
+            Update::Transaction(tx) => {
+                if self.tx_dedupe.get(&tx.signature).is_some() {
+                    false
+                } else {
+                    self.tx_dedupe.put(tx.signature, ());
+                    true
+                }
+            },
             Update::Account(acc) => {
                 let mut hasher = AHasher::default();
                 hasher.write(&acc.account.data);
