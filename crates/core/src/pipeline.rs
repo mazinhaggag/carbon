@@ -87,6 +87,8 @@ use {
 use ahash::RandomState;
 use hashbrown::HashSet;
 use solana_signature::Signature;
+use lru::LruCache;
+use std::num::NonZeroUsize;
 use std::hash::Hasher;
 use ahash::AHasher;
 use once_cell::sync::Lazy;
@@ -299,14 +301,18 @@ pub struct Pipeline {
     pub shutdown_strategy: ShutdownStrategy,
     pub channel_buffer_size: usize,
 
-    // Dedupe caches (hot/cold) for first-to-arrive racing across datasources
-    tx_dedupe: DedupeCache<Signature>,
+    // Dedupe caches
+    // Transactions use capacity-based LRU (no timing window) for cross-stream stability
+    tx_dedupe: LruCache<Signature, ()>,
     account_dedupe: DedupeCache<AccountKey>,
     deletion_dedupe: DedupeCache<DeletionKey>,
     block_dedupe: DedupeCache<u64>,
 
     // Per-datasource stats
     datasource_stats: HashMap<DatasourceId, DatasourceStats>,
+
+    // Slot -> block_time index to stabilize timestamps for early-arriving txs
+    slot_time_index: LruCache<u64, i64>,
 }
 
 impl Pipeline {
@@ -599,6 +605,24 @@ impl Pipeline {
                             if self.is_duplicate(&update) {
                                 self.metrics.increment_counter("updates_duplicate_dropped", 1).await?;
                                 continue;
+                            }
+
+                            // Normalize timestamps and record slot->time index without delay
+                            let mut update = update;
+                            match &mut update {
+                                Update::BlockDetails(block) => {
+                                    if let Some(bt) = block.block_time {
+                                        self.slot_time_index.put(block.slot, bt);
+                                    }
+                                }
+                                Update::Transaction(tx) => {
+                                    if tx.block_time.is_none() {
+                                        if let Some(bt) = self.slot_time_index.get(&tx.slot).copied() {
+                                            tx.block_time = Some(bt);
+                                        }
+                                    }
+                                }
+                                _ => {}
                             }
 
                             // Record datasource stats (win and last slot)
@@ -1654,11 +1678,12 @@ impl PipelineBuilder {
             metrics_flush_interval: self.metrics_flush_interval,
             datasource_cancellation_token: self.datasource_cancellation_token,
             channel_buffer_size: self.channel_buffer_size,
-            tx_dedupe: DedupeCache::new(1_000_000, Duration::from_millis(150)),
+            tx_dedupe: LruCache::new(NonZeroUsize::new(1_000_000).unwrap()),
             account_dedupe: DedupeCache::new(1_000_000, Duration::from_millis(150)),
             deletion_dedupe: DedupeCache::new(200_000, Duration::from_millis(150)),
             block_dedupe: DedupeCache::new(200_000, Duration::from_millis(150)),
             datasource_stats: HashMap::new(),
+            slot_time_index: LruCache::new(NonZeroUsize::new(200_000).unwrap()),
         })
     }
 }
