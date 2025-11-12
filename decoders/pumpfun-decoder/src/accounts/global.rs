@@ -21,4 +21,5 @@ pub struct Global {
     pub fee_recipients: [solana_pubkey::Pubkey; 7],
     pub set_creator_authority: solana_pubkey::Pubkey,
     pub admin_set_creator_authority: solana_pubkey::Pubkey,
+    pub reserved_fee_recipient: solana_pubkey::Pubkey,
 }

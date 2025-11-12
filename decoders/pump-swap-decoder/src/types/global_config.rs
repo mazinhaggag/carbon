@@ -11,4 +11,5 @@ pub struct GlobalConfig {
     pub protocol_fee_recipients: [solana_pubkey::Pubkey; 8],
     pub coin_creator_fee_basis_points: u64,
     pub admin_set_coin_creator_authority: solana_pubkey::Pubkey,
+    pub reserved_fee_recipient: solana_pubkey::Pubkey,
 }
