@@ -12,4 +12,5 @@ pub struct BondingCurve {
     pub token_total_supply: u64,
     pub complete: bool,
     pub creator: solana_pubkey::Pubkey,
+    pub is_mayhem_mode: bool,
 }
