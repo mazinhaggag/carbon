@@ -215,6 +215,7 @@ impl Datasource for YellowstoneGrpcGeyserClient {
                                     match message {
                                         Ok(msg) => match msg.update_oneof {
                                             Some(UpdateOneof::Account(account_update)) => {
+                                                record_ingest_slot(&metrics, &id_for_loop, account_update.slot).await;
                                                 send_subscribe_account_update_info(
                                                     account_update.account,
                                                     &metrics,
@@ -227,9 +228,11 @@ impl Datasource for YellowstoneGrpcGeyserClient {
                                             }
 
                                             Some(UpdateOneof::Transaction(transaction_update)) => {
+                                                record_ingest_slot(&metrics, &id_for_loop, transaction_update.slot).await;
                                                 send_subscribe_update_transaction_info(transaction_update.transaction, &metrics, &sender, id_for_loop.clone(), transaction_update.slot, None).await
                                             }
                                             Some(UpdateOneof::Block(block_update)) => {
+                                                record_ingest_slot(&metrics, &id_for_loop, block_update.slot).await;
                                                 let block_time = block_update.block_time.map(|ts| ts.timestamp);
 
                                                 for transaction_update in block_update.transactions {
@@ -374,6 +377,14 @@ async fn send_subscribe_account_update_info(
     } else {
         log::error!("No account info in UpdateOneof::Account at slot {slot}");
     }
+}
+
+async fn record_ingest_slot(metrics: &MetricsCollection, id: &DatasourceId, slot: u64) {
+    let name = format!("datasource_ingest_last_slot_{}", id.as_str());
+    metrics
+        .update_gauge(&name, slot as f64)
+        .await
+        .unwrap_or_else(|value| log::error!("Error recording metric: {value}"));
 }
 
 async fn send_subscribe_update_transaction_info(

@@ -91,8 +91,6 @@ use lru::LruCache;
 use std::num::NonZeroUsize;
 use std::hash::Hasher;
 use ahash::AHasher;
-use once_cell::sync::Lazy;
-use std::sync::RwLock;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct AccountKey {
@@ -315,9 +313,6 @@ pub struct Pipeline {
     slot_time_index: LruCache<u64, i64>,
 }
 
-// Global registry for datasource last slots (for external health checks)
-static DATASOURCE_LAST_SLOTS: Lazy<RwLock<HashMap<String, u64>>> = Lazy::new(|| RwLock::new(HashMap::new()));
-
 #[inline]
 fn extract_slot(update: &Update) -> Option<u64> {
     match update {
@@ -326,11 +321,6 @@ fn extract_slot(update: &Update) -> Option<u64> {
         Update::AccountDeletion(del) => Some(del.slot),
         Update::BlockDetails(b) => Some(b.slot),
     }
-}
-
-/// Returns a snapshot of last slots per datasource ID string for health checks.
-pub fn get_datasource_last_slots() -> HashMap<String, u64> {
-    DATASOURCE_LAST_SLOTS.read().unwrap().clone()
 }
 
 impl Pipeline {
@@ -379,12 +369,6 @@ impl Pipeline {
             let lag = if stats.last_slot > 0 { max_slot.saturating_sub(stats.last_slot) } else { 0 };
             self.metrics.update_gauge(&format!("datasource_last_slot_{}", id_str), stats.last_slot as f64).await?;
             self.metrics.update_gauge(&format!("datasource_lag_vs_max_{}", id_str), lag as f64).await?;
-
-            // publish to global registry for external health checks
-            {
-                let mut guard = DATASOURCE_LAST_SLOTS.write().unwrap();
-                guard.insert(id_str.to_string(), stats.last_slot);
-            }
 
             let now_minute = (std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

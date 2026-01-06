@@ -1454,12 +1454,12 @@ dependencies = [
  "bs58",
  "carbon-macros",
  "carbon-proc-macros",
- "carbon-test-utils 0.11.0",
+ "carbon-test-utils",
  "hashbrown 0.14.5",
  "juniper",
  "juniper_axum",
  "log",
- "lru",
+ "lru 0.12.5",
  "num-traits",
  "once_cell",
  "serde",
@@ -5406,11 +5406,20 @@ dependencies = [
 
 [[package]]
 name = "lru"
+version = "0.7.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e999beba7b6e8345721bd280141ed958096a2e4abdf74f67ff4ce49b4b54e47a"
+dependencies = [
+ "hashbrown 0.12.3",
+]
+
+[[package]]
+name = "lru"
 version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
 dependencies = [
- "hashbrown 0.15.3",
+ "hashbrown 0.15.2",
 ]
 
 [[package]]
@@ -7093,7 +7102,7 @@ dependencies = [
  "cc",
  "libc",
  "libm",
- "lru",
+ "lru 0.7.8",
  "parking_lot 0.11.2",
  "smallvec",
  "spin",
@@ -9190,7 +9199,7 @@ dependencies = [
  "indexmap 2.12.1",
  "itertools 0.12.1",
  "log",
- "lru",
+ "lru 0.7.8",
  "num-traits",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -9407,7 +9416,7 @@ dependencies = [
  "itertools 0.12.1",
  "lazy-lru",
  "log",
- "lru",
+ "lru 0.7.8",
  "mockall",
  "num_cpus",
  "num_enum",
@@ -11149,7 +11158,7 @@ checksum = "bffb1d9707e2170bdc1e2828d63398e559f77b76002b18c82fb9399fc06ab8ff"
 dependencies = [
  "async-trait",
  "log",
- "lru",
+ "lru 0.7.8",
  "quinn",
  "rustls 0.23.35",
  "solana-clock",

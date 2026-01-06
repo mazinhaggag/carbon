@@ -118,6 +118,12 @@ impl Metrics for LogMetrics {
             if let Some(id) = k.strip_prefix("datasource_last_slot_") {
                 datasource_ids.insert(id.to_string());
             }
+            if let Some(id) = k.strip_prefix("datasource_ingest_last_slot_") {
+                datasource_ids.insert(id.to_string());
+            }
+            if let Some(id) = k.strip_prefix("datasource_wins_5m_") {
+                datasource_ids.insert(id.to_string());
+            }
         }
         if !datasource_ids.is_empty() {
             // Compute totals for percentage formatting
@@ -144,9 +150,17 @@ impl Metrics for LogMetrics {
                 let p1 = if total_1h > 0 { (w1h * 100 / total_1h) } else { 0 } as u64;
                 let p6 = if total_6h > 0 { (w6h * 100 / total_6h) } else { 0 } as u64;
 
+                let tip_slot = *gauges_snapshot
+                    .get(&format!("datasource_ingest_last_slot_{}", id))
+                    .unwrap_or(&0.0) as u64;
+                let pipe_slot = *gauges_snapshot
+                    .get(&format!("datasource_last_slot_{}", id))
+                    .unwrap_or(&0.0) as u64;
                 log::info!(
-                    "{:width$} | 5m: {:>3}% | 1h: {:>3}% | 6h: {:>3}%",
+                    "{:width$} | tip: {:>10} | pipe: {:>10} | 5m: {:>3}% | 1h: {:>3}% | 6h: {:>3}%",
                     id,
+                    tip_slot,
+                    pipe_slot,
                     p5,
                     p1,
                     p6,
