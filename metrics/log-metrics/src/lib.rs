@@ -1,7 +1,7 @@
 use {
     async_trait::async_trait,
     carbon_core::{error::CarbonResult, metrics::Metrics},
-    std::{collections::{BTreeSet, HashMap}, time::Instant},
+    std::{collections::HashMap, time::Instant},
     tokio::sync::RwLock,
 };
 
@@ -146,9 +146,9 @@ impl Metrics for LogMetrics {
                 let w1h = *gauges_snapshot.get(&format!("datasource_wins_1h_{}", id)).unwrap_or(&0.0) as u64;
                 let w6h = *gauges_snapshot.get(&format!("datasource_wins_6h_{}", id)).unwrap_or(&0.0) as u64;
 
-                let p5 = if total_5m > 0 { (w5m * 100 / total_5m) } else { 0 } as u64;
-                let p1 = if total_1h > 0 { (w1h * 100 / total_1h) } else { 0 } as u64;
-                let p6 = if total_6h > 0 { (w6h * 100 / total_6h) } else { 0 } as u64;
+                let p5 = if total_5m > 0 { w5m * 100 / total_5m } else { 0 } as u64;
+                let p1 = if total_1h > 0 { w1h * 100 / total_1h } else { 0 } as u64;
+                let p6 = if total_6h > 0 { w6h * 100 / total_6h } else { 0 } as u64;
 
                 let tip_slot = *gauges_snapshot
                     .get(&format!("datasource_ingest_last_slot_{}", id))
@@ -292,5 +292,22 @@ impl Metrics for LogMetrics {
         };
 
         Ok(())
+    }
+
+    async fn get_gauge(&self, name: &str) -> Option<f64> {
+        match name {
+            "updates_queued" => Some(*self.updates_queued.read().await as f64),
+            _ => self.gauges.read().await.get(name).copied(),
+        }
+    }
+
+    async fn get_gauges_by_prefix(&self, prefix: &str) -> HashMap<String, f64> {
+        self.gauges
+            .read()
+            .await
+            .iter()
+            .filter(|(k, _)| k.starts_with(prefix))
+            .map(|(k, v)| (k.clone(), *v))
+            .collect()
     }
 }

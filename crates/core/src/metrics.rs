@@ -61,6 +61,26 @@ pub trait Metrics: Send + Sync {
     /// - `value`: The value to add to the histogram, typically representing
     ///   time or size.
     async fn record_histogram(&self, name: &str, value: f64) -> CarbonResult<()>;
+
+    /// Gets the current value of a gauge metric.
+    ///
+    /// # Parameters
+    ///
+    /// - `name`: The name of the gauge metric to retrieve.
+    ///
+    /// Returns `None` if the gauge doesn't exist or reading is not supported.
+    async fn get_gauge(&self, name: &str) -> Option<f64> {
+        let _ = name;
+        None
+    }
+
+    /// Gets all gauge values matching a prefix.
+    ///
+    /// Returns a map of gauge names to their values.
+    async fn get_gauges_by_prefix(&self, prefix: &str) -> std::collections::HashMap<String, f64> {
+        let _ = prefix;
+        std::collections::HashMap::new()
+    }
 }
 
 #[derive(Default)]
@@ -113,5 +133,22 @@ impl MetricsCollection {
             metric.record_histogram(name, value).await?;
         }
         Ok(())
+    }
+
+    pub async fn get_gauge(&self, name: &str) -> Option<f64> {
+        for metric in &self.metrics {
+            if let Some(value) = metric.get_gauge(name).await {
+                return Some(value);
+            }
+        }
+        None
+    }
+
+    pub async fn get_gauges_by_prefix(&self, prefix: &str) -> std::collections::HashMap<String, f64> {
+        let mut result = std::collections::HashMap::new();
+        for metric in &self.metrics {
+            result.extend(metric.get_gauges_by_prefix(prefix).await);
+        }
+        result
     }
 }
