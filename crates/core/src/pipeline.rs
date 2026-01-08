@@ -598,6 +598,30 @@ impl Pipeline {
                     }
                 }
                 _ = interval.tick() => {
+                    let queued = update_receiver.len();
+                    self.metrics.update_gauge("updates_queued", queued as f64).await?;
+                    if queued > 0 {
+                        let queue_pct = if self.channel_buffer_size > 0 {
+                            (queued as f64 / self.channel_buffer_size as f64) * 100.0
+                        } else {
+                            0.0
+                        };
+                        if queue_pct >= 80.0 {
+                            log::warn!(
+                                "pipeline queue depth high: {} ({:.0}% of capacity {})",
+                                queued,
+                                queue_pct,
+                                self.channel_buffer_size
+                            );
+                        } else {
+                            log::info!(
+                                "pipeline queue depth: {} ({:.0}% of capacity {})",
+                                queued,
+                                queue_pct,
+                                self.channel_buffer_size
+                            );
+                        }
+                    }
                     // Emit datasource metrics (wins windows and lag) before flushing
                     self.emit_datasource_metrics().await?;
                     self.metrics.flush_metrics().await?;
