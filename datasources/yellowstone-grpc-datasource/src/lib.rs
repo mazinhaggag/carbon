@@ -162,7 +162,13 @@ impl StreamLogState {
         }
     }
 
-    fn maybe_log(&mut self, datasource_id: &DatasourceId, sender_capacity: usize, log_interval: Duration) {
+    async fn maybe_log(
+        &mut self,
+        datasource_id: &DatasourceId,
+        sender_capacity: usize,
+        log_interval: Duration,
+        metrics: &MetricsCollection,
+    ) {
         let elapsed = self.last_log.elapsed();
         if elapsed < log_interval {
             return;
@@ -179,9 +185,65 @@ impl StreamLogState {
         let last_slot = self.last_slot.unwrap_or(0);
         let since_last_msg = self.last_msg.elapsed();
 
+        let id_str = datasource_id.as_str();
+
+        let _ = metrics
+            .update_gauge(&format!("yellowstone_grpc_msg_rate_{}", id_str), msg_rate)
+            .await;
+        let _ = metrics
+            .update_gauge(
+                &format!("yellowstone_grpc_tx_decode_avg_ms_{}", id_str),
+                avg_decode_ms,
+            )
+            .await;
+        let _ = metrics
+            .update_gauge(
+                &format!("yellowstone_grpc_tx_decode_max_ms_{}", id_str),
+                max_decode_ms,
+            )
+            .await;
+        let _ = metrics
+            .update_gauge(
+                &format!("yellowstone_grpc_sender_capacity_{}", id_str),
+                sender_capacity as f64,
+            )
+            .await;
+        let _ = metrics
+            .update_gauge(
+                &format!("yellowstone_grpc_since_last_msg_ms_{}", id_str),
+                since_last_msg.as_secs_f64() * 1000.0,
+            )
+            .await;
+        let _ = metrics
+            .update_gauge(&format!("yellowstone_grpc_window_msgs_{}", id_str), self.msg_count as f64)
+            .await;
+        let _ = metrics
+            .update_gauge(
+                &format!("yellowstone_grpc_window_updates_sent_{}", id_str),
+                self.updates_sent as f64,
+            )
+            .await;
+        let _ = metrics
+            .update_gauge(
+                &format!("yellowstone_grpc_window_dropped_full_{}", id_str),
+                self.updates_dropped_full as f64,
+            )
+            .await;
+        let _ = metrics
+            .update_gauge(
+                &format!("yellowstone_grpc_window_dropped_closed_{}", id_str),
+                self.updates_dropped_closed as f64,
+            )
+            .await;
+        let _ = metrics
+            .update_gauge(
+                &format!("yellowstone_grpc_window_skipped_{}", id_str),
+                self.updates_skipped as f64,
+            )
+            .await;
         log::info!(
             "yellowstone grpc stats [{}]: msgs={} (acct={}, tx={}, block={}, ping={}) updates_sent={} dropped_full={} dropped_closed={} skipped={} msg_rate={:.1}/s tx_decode_avg_ms={:.3} tx_decode_max_ms={:.3} last_slot={} since_last_msg={:?} sender_capacity={}",
-            datasource_id.as_str(),
+            id_str,
             self.msg_count,
             self.account_msgs,
             self.transaction_msgs,
@@ -456,7 +518,9 @@ impl Datasource for YellowstoneGrpcGeyserClient {
                                         }
                                     }
 
-                                    stream_stats.maybe_log(&id_for_loop, sender.capacity(), log_interval);
+                                    stream_stats
+                                        .maybe_log(&id_for_loop, sender.capacity(), log_interval, &metrics)
+                                        .await;
                                 }
                             }
                             Err(e) => {
