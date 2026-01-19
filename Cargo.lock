@@ -1616,7 +1616,7 @@ dependencies = [
  "async-trait",
  "carbon-core",
  "log",
- "reqwest 0.12.24",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "solana-client",
