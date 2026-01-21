@@ -323,6 +323,29 @@ fn extract_slot(update: &Update) -> Option<u64> {
     }
 }
 
+fn log_queue_depth(queued: usize, capacity: usize) {
+    let queue_pct = if capacity > 0 {
+        (queued as f64 / capacity as f64) * 100.0
+    } else {
+        0.0
+    };
+    if queue_pct >= 80.0 {
+        log::warn!(
+            "pipeline queue depth high: {} ({:.0}% of capacity {})",
+            queued,
+            queue_pct,
+            capacity
+        );
+    } else {
+        log::info!(
+            "pipeline queue depth: {} ({:.0}% of capacity {})",
+            queued,
+            queue_pct,
+            capacity
+        );
+    }
+}
+
 impl Pipeline {
     fn ensure_stats_entry(&mut self, id: &DatasourceId) {
         if !self.datasource_stats.contains_key(id) {
@@ -575,6 +598,7 @@ impl Pipeline {
         let mut interval = tokio::time::interval(time::Duration::from_secs(
             self.metrics_flush_interval.unwrap_or(5),
         ));
+        let mut queue_interval = tokio::time::interval(time::Duration::from_secs(1));
 
         loop {
             tokio::select! {
@@ -597,30 +621,15 @@ impl Pipeline {
                         log::info!("shutting down the pipeline after processing pending updates.");
                     }
                 }
+                _ = queue_interval.tick() => {
+                    let queued = update_receiver.len();
+                    log_queue_depth(queued, self.channel_buffer_size);
+                }
                 _ = interval.tick() => {
                     let queued = update_receiver.len();
                     self.metrics.update_gauge("updates_queued", queued as f64).await?;
                     if queued > 0 {
-                        let queue_pct = if self.channel_buffer_size > 0 {
-                            (queued as f64 / self.channel_buffer_size as f64) * 100.0
-                        } else {
-                            0.0
-                        };
-                        if queue_pct >= 80.0 {
-                            log::warn!(
-                                "pipeline queue depth high: {} ({:.0}% of capacity {})",
-                                queued,
-                                queue_pct,
-                                self.channel_buffer_size
-                            );
-                        } else {
-                            log::info!(
-                                "pipeline queue depth: {} ({:.0}% of capacity {})",
-                                queued,
-                                queue_pct,
-                                self.channel_buffer_size
-                            );
-                        }
+                        log_queue_depth(queued, self.channel_buffer_size);
                     }
                     // Emit datasource metrics (wins windows and lag) before flushing
                     self.emit_datasource_metrics().await?;
