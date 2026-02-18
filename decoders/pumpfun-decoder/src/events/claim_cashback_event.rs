@@ -3,31 +3,21 @@ use solana_pubkey::Pubkey;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, borsh::BorshSerialize, borsh::BorshDeserialize, PartialEq)]
-pub struct CreateEventEvent {
-    pub name: String,
-    pub symbol: String,
-    pub uri: String,
-    pub mint: Pubkey,
-    pub bonding_curve: Pubkey,
+pub struct ClaimCashbackEventEvent {
     pub user: Pubkey,
-    pub creator: Pubkey,
+    pub amount: u64,
     pub timestamp: i64,
-    pub virtual_token_reserves: u64,
-    pub virtual_sol_reserves: u64,
-    pub real_token_reserves: u64,
-    pub token_total_supply: u64,
-    pub token_program: Pubkey,
-    pub is_mayhem_mode: bool,
-    pub is_cashback_enabled: bool,
+    pub total_claimed: u64,
+    pub total_cashback_earned: u64,
 }
 
-impl CreateEventEvent {
+impl ClaimCashbackEventEvent {
     pub fn decode(data: &[u8]) -> Option<Self> {
         if data.len() < 8 {
             return None;
         }
         let discriminator = &data[0..8];
-        if discriminator != [27, 114, 169, 77, 222, 235, 99, 118] {
+        if discriminator != [226, 214, 246, 33, 7, 242, 147, 229] {
             return None;
         }
 

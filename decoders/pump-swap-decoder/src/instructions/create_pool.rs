@@ -1,3 +1,4 @@
+use crate::types::OptionBool;
 use carbon_core::{account_utils::next_account, borsh, CarbonDeserialize};
 
 #[derive(
@@ -9,6 +10,8 @@ pub struct CreatePool {
     pub base_amount_in: u64,
     pub quote_amount_in: u64,
     pub coin_creator: solana_pubkey::Pubkey,
+    pub is_mayhem_mode: bool,
+    pub is_cashback_coin: OptionBool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, serde::Serialize, serde::Deserialize)]

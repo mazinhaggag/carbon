@@ -6,6 +6,8 @@ pub mod bonding_curve;
 pub use bonding_curve::*;
 pub mod buy_event;
 pub use buy_event::*;
+pub mod claim_cashback_event;
+pub use claim_cashback_event::*;
 pub mod claim_token_incentives_event;
 pub use claim_token_incentives_event::*;
 pub mod close_user_volume_accumulator_event;

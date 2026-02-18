@@ -12,6 +12,7 @@ pub mod admin_set_idl_authority;
 pub mod admin_update_token_incentives;
 pub mod buy;
 pub mod buy_exact_sol_in;
+pub mod claim_cashback;
 pub mod claim_token_incentives;
 pub mod close_user_volume_accumulator;
 pub mod collect_creator_fee;
@@ -29,17 +30,19 @@ pub mod set_metaplex_creator;
 pub mod set_params;
 pub mod set_reserved_fee_recipients;
 pub mod sync_user_volume_accumulator;
+pub mod toggle_cashback_enabled;
 pub mod toggle_create_v2;
 pub mod toggle_mayhem_mode;
 pub mod update_global_authority;
 
 pub use self::{
     admin_set_creator::*, admin_set_idl_authority::*, admin_update_token_incentives::*, buy::*,
-    buy_exact_sol_in::*, claim_token_incentives::*, close_user_volume_accumulator::*,
+    buy_exact_sol_in::*, claim_cashback::*, claim_token_incentives::*, close_user_volume_accumulator::*,
     collect_creator_fee::*, cpi_event::*, create::*, create_v2::*, extend_account::*,
     init_user_volume_accumulator::*, initialize::*, migrate::*, sell::*, set_creator::*,
     set_mayhem_virtual_params::*, set_metaplex_creator::*, set_params::*,
-    set_reserved_fee_recipients::*, sync_user_volume_accumulator::*, toggle_create_v2::*,
+    set_reserved_fee_recipients::*, sync_user_volume_accumulator::*,
+    toggle_cashback_enabled::*, toggle_create_v2::*,
     toggle_mayhem_mode::*, update_global_authority::*,
 };
 
@@ -52,6 +55,7 @@ pub enum PumpfunInstruction {
     AdminUpdateTokenIncentives(AdminUpdateTokenIncentives),
     Buy(Buy),
     BuyExactSolIn(BuyExactSolIn),
+    ClaimCashback(ClaimCashback),
     ClaimTokenIncentives(ClaimTokenIncentives),
     CloseUserVolumeAccumulator(CloseUserVolumeAccumulator),
     CollectCreatorFee(CollectCreatorFee),
@@ -68,6 +72,7 @@ pub enum PumpfunInstruction {
     SetParams(SetParams),
     SetReservedFeeRecipients(SetReservedFeeRecipients),
     SyncUserVolumeAccumulator(SyncUserVolumeAccumulator),
+    ToggleCashbackEnabled(ToggleCashbackEnabled),
     ToggleCreateV2(ToggleCreateV2),
     ToggleMayhemMode(ToggleMayhemMode),
     UpdateGlobalAuthority(UpdateGlobalAuthority),
@@ -131,6 +136,15 @@ impl carbon_core::instruction::InstructionDecoder<'_> for PumpfunDecoder {
                 return Some(carbon_core::instruction::DecodedInstruction {
                     program_id: instruction.program_id,
                     data: PumpfunInstruction::BuyExactSolIn(decoded),
+                    accounts: instruction.accounts.clone(),
+                });
+            }
+        }
+        {
+            if let Some(decoded) = claim_cashback::ClaimCashback::decode(data) {
+                return Some(carbon_core::instruction::DecodedInstruction {
+                    program_id: instruction.program_id,
+                    data: PumpfunInstruction::ClaimCashback(decoded),
                     accounts: instruction.accounts.clone(),
                 });
             }
@@ -283,6 +297,15 @@ impl carbon_core::instruction::InstructionDecoder<'_> for PumpfunDecoder {
                 return Some(carbon_core::instruction::DecodedInstruction {
                     program_id: instruction.program_id,
                     data: PumpfunInstruction::SyncUserVolumeAccumulator(decoded),
+                    accounts: instruction.accounts.clone(),
+                });
+            }
+        }
+        {
+            if let Some(decoded) = toggle_cashback_enabled::ToggleCashbackEnabled::decode(data) {
+                return Some(carbon_core::instruction::DecodedInstruction {
+                    program_id: instruction.program_id,
+                    data: PumpfunInstruction::ToggleCashbackEnabled(decoded),
                     accounts: instruction.accounts.clone(),
                 });
             }

@@ -11,6 +11,8 @@ pub mod admin_update_token_incentives_event;
 pub mod buy;
 pub mod buy_event;
 pub mod buy_exact_quote_in;
+pub mod claim_cashback;
+pub mod claim_cashback_event;
 pub mod claim_token_incentives;
 pub mod claim_token_incentives_event;
 pub mod close_user_volume_accumulator;
@@ -36,6 +38,7 @@ pub mod set_coin_creator;
 pub mod set_metaplex_coin_creator_event;
 pub mod sync_user_volume_accumulator;
 pub mod sync_user_volume_accumulator_event;
+pub mod toggle_cashback_enabled;
 pub mod update_admin;
 pub mod update_admin_event;
 pub mod update_fee_config;
@@ -58,6 +61,7 @@ pub enum PumpSwapInstruction {
     AdminUpdateTokenIncentives(admin_update_token_incentives::AdminUpdateTokenIncentives),
     Buy(buy::Buy),
     BuyExactQuoteIn(buy_exact_quote_in::BuyExactQuoteIn),
+    ClaimCashback(claim_cashback::ClaimCashback),
     ClaimTokenIncentives(claim_token_incentives::ClaimTokenIncentives),
     CloseUserVolumeAccumulator(close_user_volume_accumulator::CloseUserVolumeAccumulator),
     CollectCoinCreatorFee(collect_coin_creator_fee::CollectCoinCreatorFee),
@@ -70,6 +74,7 @@ pub enum PumpSwapInstruction {
     Sell(sell::Sell),
     SetCoinCreator(set_coin_creator::SetCoinCreator),
     SyncUserVolumeAccumulator(sync_user_volume_accumulator::SyncUserVolumeAccumulator),
+    ToggleCashbackEnabled(toggle_cashback_enabled::ToggleCashbackEnabled),
     UpdateAdmin(update_admin::UpdateAdmin),
     UpdateFeeConfig(update_fee_config::UpdateFeeConfig),
     Withdraw(withdraw::Withdraw),
@@ -78,6 +83,7 @@ pub enum PumpSwapInstruction {
         admin_update_token_incentives_event::AdminUpdateTokenIncentivesEvent,
     ),
     BuyEvent(buy_event::BuyEvent),
+    ClaimCashbackEvent(claim_cashback_event::ClaimCashbackEvent),
     ClaimTokenIncentivesEvent(claim_token_incentives_event::ClaimTokenIncentivesEvent),
     CloseUserVolumeAccumulatorEvent(
         close_user_volume_accumulator_event::CloseUserVolumeAccumulatorEvent,
@@ -133,6 +139,7 @@ impl carbon_core::instruction::InstructionDecoder<'_> for PumpSwapDecoder {
             PumpSwapInstruction::AdminUpdateTokenIncentives => admin_update_token_incentives::AdminUpdateTokenIncentives,
             PumpSwapInstruction::Buy => buy::Buy,
             PumpSwapInstruction::BuyExactQuoteIn => buy_exact_quote_in::BuyExactQuoteIn,
+            PumpSwapInstruction::ClaimCashback => claim_cashback::ClaimCashback,
             PumpSwapInstruction::ClaimTokenIncentives => claim_token_incentives::ClaimTokenIncentives,
             PumpSwapInstruction::CloseUserVolumeAccumulator => close_user_volume_accumulator::CloseUserVolumeAccumulator,
             PumpSwapInstruction::CollectCoinCreatorFee => collect_coin_creator_fee::CollectCoinCreatorFee,
@@ -145,12 +152,14 @@ impl carbon_core::instruction::InstructionDecoder<'_> for PumpSwapDecoder {
             PumpSwapInstruction::Sell => sell::Sell,
             PumpSwapInstruction::SetCoinCreator => set_coin_creator::SetCoinCreator,
             PumpSwapInstruction::SyncUserVolumeAccumulator => sync_user_volume_accumulator::SyncUserVolumeAccumulator,
+            PumpSwapInstruction::ToggleCashbackEnabled => toggle_cashback_enabled::ToggleCashbackEnabled,
             PumpSwapInstruction::UpdateAdmin => update_admin::UpdateAdmin,
             PumpSwapInstruction::UpdateFeeConfig => update_fee_config::UpdateFeeConfig,
             PumpSwapInstruction::Withdraw => withdraw::Withdraw,
             PumpSwapInstruction::AdminSetCoinCreatorEvent => admin_set_coin_creator_event::AdminSetCoinCreatorEvent,
             PumpSwapInstruction::AdminUpdateTokenIncentivesEvent => admin_update_token_incentives_event::AdminUpdateTokenIncentivesEvent,
             PumpSwapInstruction::BuyEvent => buy_event::BuyEvent,
+            PumpSwapInstruction::ClaimCashbackEvent => claim_cashback_event::ClaimCashbackEvent,
             PumpSwapInstruction::ClaimTokenIncentivesEvent => claim_token_incentives_event::ClaimTokenIncentivesEvent,
             PumpSwapInstruction::CloseUserVolumeAccumulatorEvent => close_user_volume_accumulator_event::CloseUserVolumeAccumulatorEvent,
             PumpSwapInstruction::CollectCoinCreatorFeeEvent => collect_coin_creator_fee_event::CollectCoinCreatorFeeEvent,

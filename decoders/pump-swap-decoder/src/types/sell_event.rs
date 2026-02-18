@@ -27,4 +27,6 @@ pub struct SellEvent {
     pub coin_creator: solana_pubkey::Pubkey,
     pub coin_creator_fee_basis_points: u64,
     pub coin_creator_fee: u64,
+    pub cashback_fee_basis_points: u64,
+    pub cashback: u64,
 }

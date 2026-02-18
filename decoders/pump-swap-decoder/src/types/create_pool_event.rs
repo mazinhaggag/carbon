@@ -24,4 +24,5 @@ pub struct CreatePoolEvent {
     pub user_base_token_account: solana_pubkey::Pubkey,
     pub user_quote_token_account: solana_pubkey::Pubkey,
     pub coin_creator: solana_pubkey::Pubkey,
+    pub is_mayhem_mode: bool,
 }
