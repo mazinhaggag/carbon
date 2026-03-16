@@ -626,14 +626,29 @@ impl Pipeline {
                     log_queue_depth(queued, self.channel_buffer_size);
                 }
                 _ = interval.tick() => {
+                    let flush_wall_start = std::time::Instant::now();
+
                     let queued = update_receiver.len();
                     self.metrics.update_gauge("updates_queued", queued as f64).await?;
                     if queued > 0 {
                         log_queue_depth(queued, self.channel_buffer_size);
                     }
-                    // Emit datasource metrics (wins windows and lag) before flushing
+
+                    let t0 = std::time::Instant::now();
                     self.emit_datasource_metrics().await?;
+                    let emit_ms = t0.elapsed().as_millis();
+
+                    let t1 = std::time::Instant::now();
                     self.metrics.flush_metrics().await?;
+                    let flush_ms = t1.elapsed().as_millis();
+
+                    let total_ms = flush_wall_start.elapsed().as_millis();
+                    if total_ms > 100 {
+                        log::warn!(
+                            "⚠️ metrics flush took {}ms (emit_datasource={}ms, flush={}ms)",
+                            total_ms, emit_ms, flush_ms
+                        );
+                    }
                 }
                 update = update_receiver.recv() => {
                     match update {
