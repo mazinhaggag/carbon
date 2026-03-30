@@ -1458,6 +1458,7 @@ dependencies = [
  "carbon-macros",
  "carbon-proc-macros",
  "carbon-test-utils",
+ "chrono",
  "hashbrown 0.14.5",
  "juniper",
  "juniper_axum",
@@ -1469,6 +1470,7 @@ dependencies = [
  "serde_json",
  "solana-account",
  "solana-account-decoder-client-types",
+ "solana-clock",
  "solana-hash 3.1.0",
  "solana-instruction",
  "solana-message",
@@ -2115,24 +2117,37 @@ dependencies = [
 name = "carbon-pump-fees-decoder"
 version = "0.12.0"
 dependencies = [
+ "async-trait",
+ "borsh",
  "carbon-core",
  "carbon-test-utils",
+ "juniper",
  "serde",
+ "serde-big-array",
+ "serde_json",
  "solana-account",
  "solana-instruction",
  "solana-pubkey 3.0.0",
+ "sqlx",
+ "sqlx_migrator",
 ]
 
 [[package]]
 name = "carbon-pump-swap-decoder"
 version = "0.12.0"
 dependencies = [
+ "async-trait",
+ "borsh",
  "carbon-core",
  "carbon-test-utils",
+ "juniper",
  "serde",
+ "serde_json",
  "solana-account",
  "solana-instruction",
  "solana-pubkey 3.0.0",
+ "sqlx",
+ "sqlx_migrator",
 ]
 
 [[package]]
@@ -2247,6 +2262,7 @@ version = "0.12.0"
 dependencies = [
  "async-trait",
  "carbon-core",
+ "chrono",
  "futures 0.3.31",
  "log",
  "solana-client",
@@ -2531,6 +2547,7 @@ version = "0.12.0"
 dependencies = [
  "async-trait",
  "carbon-core",
+ "chrono",
  "futures 0.3.31",
  "log",
  "solana-account",
