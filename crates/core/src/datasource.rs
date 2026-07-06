@@ -331,4 +331,8 @@ pub struct TransactionUpdate {
     pub index: Option<u64>,
     pub block_time: Option<i64>,
     pub block_hash: Option<Hash>,
+    /// Unix micros stamped by the datasource when the update was pulled off
+    /// its stream, before decode/enqueue. None for datasources that don't
+    /// stamp arrival.
+    pub received_at_us: Option<i64>,
 }

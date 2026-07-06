@@ -608,6 +608,7 @@ impl Datasource for HeliusWebsocket {
                                                 index: None,
                                                 block_time: None,
                                                 block_hash: None,
+                                                received_at_us: None,
                                             }));
 
                                             metrics

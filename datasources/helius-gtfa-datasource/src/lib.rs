@@ -348,6 +348,7 @@ impl Datasource for HeliusGtfaDatasource {
                     index: tx.transaction_index,
                     block_time: tx.block_time,
                     block_hash: None,
+                    received_at_us: None,
                 }));
 
                 if let Err(e) = sender.send((update, id_for_loop.clone())).await {

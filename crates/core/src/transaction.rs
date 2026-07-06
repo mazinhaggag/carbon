@@ -77,6 +77,9 @@ pub struct TransactionMetadata {
     pub index: Option<u64>,
     pub block_time: Option<i64>,
     pub block_hash: Option<Hash>,
+    /// Datasource arrival stamp (unix micros), when available. See
+    /// TransactionUpdate::received_at_us.
+    pub received_at_us: Option<i64>,
 }
 
 /// Tries convert transaction update into the metadata.
@@ -117,6 +120,7 @@ impl TryFrom<crate::datasource::TransactionUpdate> for TransactionMetadata {
             index: value.index,
             block_time: value.block_time,
             block_hash: value.block_hash,
+            received_at_us: value.received_at_us,
         })
     }
 }

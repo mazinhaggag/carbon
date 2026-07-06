@@ -563,6 +563,7 @@ fn task_processor(
                         index: None,
                         block_time: fetched_transaction.block_time,
                         block_hash: None,
+                        received_at_us: None,
                     }));
 
 

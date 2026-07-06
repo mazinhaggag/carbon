@@ -263,6 +263,7 @@ impl JetstreamerDatasource {
                     index: None,
                     block_time: None,
                     block_hash: None,
+                    received_at_us: None,
                 })),
                 id,
             ))

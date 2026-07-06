@@ -312,8 +312,15 @@ impl Datasource for YellowstoneGrpcGeyserClient {
                                             }
 
                                             Some(UpdateOneof::Transaction(transaction_update)) => {
+                                                // Arrival stamp: taken when the update comes off the
+                                                // stream, before decode/enqueue, so consumers can
+                                                // measure client-side pipeline delay.
+                                                let received_at_us = std::time::SystemTime::now()
+                                                    .duration_since(std::time::UNIX_EPOCH)
+                                                    .map(|d| d.as_micros() as i64)
+                                                    .ok();
                                                 last_processed_slot = transaction_update.slot;
-                                                send_subscribe_update_transaction_info(transaction_update.transaction, &metrics, &sender, id_for_loop.clone(), transaction_update.slot, None).await
+                                                send_subscribe_update_transaction_info(transaction_update.transaction, &metrics, &sender, id_for_loop.clone(), transaction_update.slot, None, received_at_us).await
                                             }
                                             Some(UpdateOneof::Block(block_update)) => {
                                                 last_processed_slot = block_update.slot;
@@ -321,7 +328,7 @@ impl Datasource for YellowstoneGrpcGeyserClient {
 
                                                 for transaction_update in block_update.transactions {
                                                     if retain_block_failed_transactions || transaction_update.meta.as_ref().map(|meta| meta.err.is_none()).unwrap_or(false) {
-                                                        send_subscribe_update_transaction_info(Some(transaction_update), &metrics, &sender, id_for_loop.clone(), block_update.slot, block_time).await
+                                                        send_subscribe_update_transaction_info(Some(transaction_update), &metrics, &sender, id_for_loop.clone(), block_update.slot, block_time, None).await
                                                     }
                                                 }
 
@@ -484,6 +491,7 @@ async fn send_subscribe_update_transaction_info(
     id: DatasourceId,
     slot: u64,
     block_time: Option<i64>,
+    received_at_us: Option<i64>,
 ) {
     let start_time = std::time::Instant::now();
 
@@ -516,6 +524,7 @@ async fn send_subscribe_update_transaction_info(
             index: Some(transaction_info.index),
             block_time,
             block_hash: None,
+            received_at_us,
         }));
         if let Err(e) = sender.try_send((update, id)) {
             log::error!(

@@ -309,6 +309,7 @@ fn task_processor(
                                     index: Some(tx_index as u64),
                                     block_time: block.block_time,
                                     block_hash,
+                                    received_at_us: None,
                                 }));
 
                                 metrics
