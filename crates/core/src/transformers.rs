@@ -746,6 +746,7 @@ mod tests {
             index: Some(0),
             block_time: Some(123),
             block_hash: Hash::from_str("9bit9vXNX9HyHwL89aGDNmk3vbyAM96nvb6F4SaoM1CU").ok(),
+            received_at_us: None,
         };
         let transaction_metadata = transaction_update
             .clone()
@@ -1176,6 +1177,7 @@ mod tests {
             index: Some(0),
             block_time: Some(123),
             block_hash: None,
+            received_at_us: None,
         };
         let transaction_metadata = transaction_update
             .clone()

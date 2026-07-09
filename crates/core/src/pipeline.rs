@@ -323,6 +323,39 @@ fn extract_slot(update: &Update) -> Option<u64> {
     }
 }
 
+/// Cheap, `Copy` identifier captured before an `Update` is moved into
+/// `process`, so a processing failure can be logged without cloning the whole
+/// update on the hot path.
+enum UpdateId {
+    Transaction(Signature),
+    Account(solana_pubkey::Pubkey),
+    AccountDeletion(solana_pubkey::Pubkey),
+    BlockDetails(u64),
+}
+
+impl UpdateId {
+    #[inline]
+    fn new(update: &Update) -> Self {
+        match update {
+            Update::Transaction(tx) => UpdateId::Transaction(tx.signature),
+            Update::Account(acc) => UpdateId::Account(acc.pubkey),
+            Update::AccountDeletion(del) => UpdateId::AccountDeletion(del.pubkey),
+            Update::BlockDetails(b) => UpdateId::BlockDetails(b.slot),
+        }
+    }
+}
+
+impl std::fmt::Display for UpdateId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UpdateId::Transaction(sig) => write!(f, "transaction {sig}"),
+            UpdateId::Account(pubkey) => write!(f, "account {pubkey}"),
+            UpdateId::AccountDeletion(pubkey) => write!(f, "account deletion {pubkey}"),
+            UpdateId::BlockDetails(slot) => write!(f, "block details slot {slot}"),
+        }
+    }
+}
+
 fn log_queue_depth(queued: usize, capacity: usize) {
     let queue_pct = if capacity > 0 {
         (queued as f64 / capacity as f64) * 100.0
@@ -653,14 +686,21 @@ impl Pipeline {
                 update = update_receiver.recv() => {
                     match update {
                         Some((update, datasource_id)) => {
-                            self
-                                .metrics.increment_counter("updates_received", 1)
-                                .await?;
+                            // Skip the per-update metrics calls entirely when no
+                            // collector is registered (how the bot runs), avoiding
+                            // the await overhead on the hot path.
+                            let metrics_enabled = !self.metrics.is_empty();
+
+                            if metrics_enabled {
+                                self.metrics.increment_counter("updates_received", 1).await?;
+                            }
 
                             let start = Instant::now();
                             // Dedupe: if duplicate drop and continue
                             if self.is_duplicate(&update) {
-                                self.metrics.increment_counter("updates_duplicate_dropped", 1).await?;
+                                if metrics_enabled {
+                                    self.metrics.increment_counter("updates_duplicate_dropped", 1).await?;
+                                }
                                 continue;
                             }
 
@@ -688,41 +728,49 @@ impl Pipeline {
                                 self.record_last_slot(&datasource_id, slot);
                             }
 
-                            let process_result = self.process(update.clone(), datasource_id.clone()).await;
-                            let time_taken_nanoseconds = start.elapsed().as_nanos();
-                            let time_taken_milliseconds = time_taken_nanoseconds / 1_000_000;
+                            // Capture a cheap identifier before `update` is moved into
+                            // process, so a failure can be logged without cloning it.
+                            let update_id = UpdateId::new(&update);
 
-                            self
-                                .metrics
-                                .record_histogram("updates_process_time_nanoseconds", time_taken_nanoseconds as f64)
-                                .await?;
+                            let process_result = self.process(update, datasource_id).await;
 
-                            self
-                                .metrics
-                                .record_histogram("updates_process_time_milliseconds", time_taken_milliseconds as f64)
-                                .await?;
+                            if metrics_enabled {
+                                let time_taken_nanoseconds = start.elapsed().as_nanos();
+                                let time_taken_milliseconds = time_taken_nanoseconds / 1_000_000;
+
+                                self
+                                    .metrics
+                                    .record_histogram("updates_process_time_nanoseconds", time_taken_nanoseconds as f64)
+                                    .await?;
+
+                                self
+                                    .metrics
+                                    .record_histogram("updates_process_time_milliseconds", time_taken_milliseconds as f64)
+                                    .await?;
+                            }
 
                             match process_result {
                                 Ok(_) => {
-                                    self
-                                        .metrics.increment_counter("updates_successful", 1)
-                                        .await?;
+                                    if metrics_enabled {
+                                        self.metrics.increment_counter("updates_successful", 1).await?;
+                                    }
 
                                     log::trace!("processed update")
                                 }
                                 Err(error) => {
-                                    log::error!("error processing update ({update:?}): {error:?}");
-                                    self.metrics.increment_counter("updates_failed", 1).await?;
+                                    log::error!("error processing update ({update_id}): {error:?}");
+                                    if metrics_enabled {
+                                        self.metrics.increment_counter("updates_failed", 1).await?;
+                                    }
                                 }
                             };
 
-                            self
-                                .metrics.increment_counter("updates_processed", 1)
-                                .await?;
-
-                            self
-                                .metrics.update_gauge("updates_queued", update_receiver.len() as f64)
-                                .await?;
+                            if metrics_enabled {
+                                self.metrics.increment_counter("updates_processed", 1).await?;
+                                self.metrics
+                                    .update_gauge("updates_queued", update_receiver.len() as f64)
+                                    .await?;
+                            }
                         }
                         None => {
                             log::info!("update_receiver closed, shutting down.");
@@ -820,12 +868,14 @@ impl Pipeline {
                     }
                 }
 
-                self.metrics
-                    .increment_counter("account_updates_processed", 1)
-                    .await?;
+                if !self.metrics.is_empty() {
+                    self.metrics
+                        .increment_counter("account_updates_processed", 1)
+                        .await?;
+                }
             }
             Update::Transaction(transaction_update) => {
-                let transaction_metadata = Arc::new((*transaction_update).clone().try_into()?);
+                let transaction_metadata = Arc::new((&*transaction_update).try_into()?);
 
                 let instructions_with_metadata: InstructionsWithMetadata =
                     transformers::extract_instructions_with_metadata(
@@ -862,9 +912,11 @@ impl Pipeline {
                     }
                 }
 
-                self.metrics
-                    .increment_counter("transaction_updates_processed", 1)
-                    .await?;
+                if !self.metrics.is_empty() {
+                    self.metrics
+                        .increment_counter("transaction_updates_processed", 1)
+                        .await?;
+                }
             }
             Update::AccountDeletion(account_deletion) => {
                 for pipe in self.account_deletion_pipes.iter_mut() {
@@ -876,9 +928,11 @@ impl Pipeline {
                     }
                 }
 
-                self.metrics
-                    .increment_counter("account_deletions_processed", 1)
-                    .await?;
+                if !self.metrics.is_empty() {
+                    self.metrics
+                        .increment_counter("account_deletions_processed", 1)
+                        .await?;
+                }
             }
             Update::BlockDetails(block_details) => {
                 for pipe in self.block_details_pipes.iter_mut() {
@@ -892,9 +946,11 @@ impl Pipeline {
                     }
                 }
 
-                self.metrics
-                    .increment_counter("block_details_processed", 1)
-                    .await?;
+                if !self.metrics.is_empty() {
+                    self.metrics
+                        .increment_counter("block_details_processed", 1)
+                        .await?;
+                }
             }
         };
 

@@ -93,6 +93,12 @@ impl MetricsCollection {
         Self { metrics }
     }
 
+    /// Returns `true` when no metrics collectors are registered, so the hot
+    /// path can skip per-update metrics calls entirely.
+    pub fn is_empty(&self) -> bool {
+        self.metrics.is_empty()
+    }
+
     pub async fn initialize_metrics(&self) -> CarbonResult<()> {
         for metric in &self.metrics {
             metric.initialize().await?;

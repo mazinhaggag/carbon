@@ -102,10 +102,10 @@ pub struct TransactionMetadata {
 ///
 /// Returns an error if the fee payer cannot be extracted from the transaction's
 /// account keys.
-impl TryFrom<crate::datasource::TransactionUpdate> for TransactionMetadata {
+impl TryFrom<&crate::datasource::TransactionUpdate> for TransactionMetadata {
     type Error = crate::error::Error;
 
-    fn try_from(value: crate::datasource::TransactionUpdate) -> Result<Self, Self::Error> {
+    fn try_from(value: &crate::datasource::TransactionUpdate) -> Result<Self, Self::Error> {
         log::trace!("try_from(transaction_update: {value:?})");
         let accounts = value.transaction.message.static_account_keys();
 
@@ -122,6 +122,14 @@ impl TryFrom<crate::datasource::TransactionUpdate> for TransactionMetadata {
             block_hash: value.block_hash,
             received_at_us: value.received_at_us,
         })
+    }
+}
+
+impl TryFrom<crate::datasource::TransactionUpdate> for TransactionMetadata {
+    type Error = crate::error::Error;
+
+    fn try_from(value: crate::datasource::TransactionUpdate) -> Result<Self, Self::Error> {
+        TransactionMetadata::try_from(&value)
     }
 }
 
