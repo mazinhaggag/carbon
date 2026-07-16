@@ -29,6 +29,13 @@ pub struct SellEventEvent {
     pub coin_creator_fee: u64,
     pub cashback_fee_basis_points: u64,
     pub cashback: u64,
+    pub buyback_fee_basis_points: u64,
+    pub buyback_fee: u64,
+    /// Appended 2026-07-15: effective quote reserves are
+    /// `pool_quote_token_reserves + virtual_quote_reserves`.
+    pub virtual_quote_reserves: i128,
+    pub can_boost: bool,
+    pub base_supply: u64,
 }
 
 impl SellEventEvent {
@@ -41,10 +48,82 @@ impl SellEventEvent {
             return None;
         }
 
-        let mut data_slice = data;
-
-        data_slice = &data_slice[8..];
+        // Zero-pad so events emitted before the appended fields
+        // (buyback_*, virtual_quote_reserves, can_boost, base_supply)
+        // still decode, with the missing tail reading as 0/false.
+        let mut padded = data[8..].to_vec();
+        padded.extend_from_slice(&[0u8; 41]);
+        let mut data_slice = padded.as_slice();
 
         borsh::BorshDeserialize::deserialize(&mut data_slice).ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DISCRIMINATOR: [u8; 8] = [62, 47, 55, 10, 165, 3, 220, 42];
+
+    fn fixture() -> SellEventEvent {
+        SellEventEvent {
+            timestamp: 1_752_000_000,
+            base_amount_in: 1_000_000,
+            min_quote_amount_out: 900_000_000,
+            user_base_token_reserves: 1_000_000,
+            user_quote_token_reserves: 0,
+            pool_base_token_reserves: 800_000_000_000_000,
+            pool_quote_token_reserves: 100_000_000_000,
+            quote_amount_out: 1_000_000_000,
+            lp_fee_basis_points: 20,
+            lp_fee: 2_000_000,
+            protocol_fee_basis_points: 5,
+            protocol_fee: 500_000,
+            quote_amount_out_without_lp_fee: 998_000_000,
+            user_quote_amount_out: 997_500_000,
+            pool: Pubkey::new_unique(),
+            user: Pubkey::new_unique(),
+            user_base_token_account: Pubkey::new_unique(),
+            user_quote_token_account: Pubkey::new_unique(),
+            protocol_fee_recipient: Pubkey::new_unique(),
+            protocol_fee_recipient_token_account: Pubkey::new_unique(),
+            coin_creator: Pubkey::new_unique(),
+            coin_creator_fee_basis_points: 5,
+            coin_creator_fee: 500_000,
+            cashback_fee_basis_points: 0,
+            cashback: 0,
+            buyback_fee_basis_points: 10,
+            buyback_fee: 1_000_000,
+            virtual_quote_reserves: 25_000_000_000_i128,
+            can_boost: true,
+            base_supply: 1_000_000_000_000_000,
+        }
+    }
+
+    fn event_data(event: &SellEventEvent) -> Vec<u8> {
+        let mut data = DISCRIMINATOR.to_vec();
+        data.extend_from_slice(&borsh::to_vec(event).expect("serialize"));
+        data
+    }
+
+    #[test]
+    fn decodes_current_layout() {
+        let event = fixture();
+        assert_eq!(SellEventEvent::decode(&event_data(&event)), Some(event));
+    }
+
+    #[test]
+    fn decodes_legacy_layout_without_appended_fields() {
+        let event = fixture();
+        let mut data = event_data(&event);
+        data.truncate(data.len() - 41);
+
+        let decoded = SellEventEvent::decode(&data).expect("legacy event decodes");
+        assert_eq!(decoded.virtual_quote_reserves, 0);
+        assert_eq!(decoded.buyback_fee_basis_points, 0);
+        assert_eq!(decoded.buyback_fee, 0);
+        assert!(!decoded.can_boost);
+        assert_eq!(decoded.base_supply, 0);
+        assert_eq!(decoded.user_quote_amount_out, event.user_quote_amount_out);
     }
 }

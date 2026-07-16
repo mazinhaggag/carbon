@@ -17,6 +17,9 @@ pub struct Pool {
     pub coin_creator: Pubkey,
     pub is_mayhem_mode: bool,
     pub is_cashback_coin: bool,
+    /// Appended 2026-07-15: effective quote reserves for quoting are
+    /// `pool_quote_token_account.amount + virtual_quote_reserves`.
+    pub virtual_quote_reserves: i128,
 }
 
 impl Pool {
@@ -29,10 +32,61 @@ impl Pool {
             return None;
         }
 
-        let mut data_slice = data;
-
-        data_slice = &data_slice[8..];
+        // Zero-pad so pool accounts written before virtual_quote_reserves was
+        // appended still decode, with the missing tail reading as 0.
+        let mut padded = data[8..].to_vec();
+        padded.extend_from_slice(&[0u8; 16]);
+        let mut data_slice = padded.as_slice();
 
         borsh::BorshDeserialize::deserialize(&mut data_slice).ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DISCRIMINATOR: [u8; 8] = [241, 154, 109, 4, 17, 177, 109, 188];
+
+    fn fixture() -> Pool {
+        Pool {
+            pool_bump: 254,
+            index: 0,
+            creator: Pubkey::new_unique(),
+            base_mint: Pubkey::new_unique(),
+            quote_mint: Pubkey::new_unique(),
+            lp_mint: Pubkey::new_unique(),
+            pool_base_token_account: Pubkey::new_unique(),
+            pool_quote_token_account: Pubkey::new_unique(),
+            lp_supply: 1_000_000,
+            coin_creator: Pubkey::new_unique(),
+            is_mayhem_mode: false,
+            is_cashback_coin: true,
+            virtual_quote_reserves: 30_000_000_000_i128,
+        }
+    }
+
+    fn account_data(pool: &Pool) -> Vec<u8> {
+        let mut data = DISCRIMINATOR.to_vec();
+        data.extend_from_slice(&borsh::to_vec(pool).expect("serialize"));
+        data
+    }
+
+    #[test]
+    fn decodes_current_layout() {
+        let pool = fixture();
+        assert_eq!(Pool::decode(&account_data(&pool)), Some(pool));
+    }
+
+    #[test]
+    fn decodes_legacy_layout_without_virtual_quote_reserves() {
+        let pool = fixture();
+        let mut data = account_data(&pool);
+        data.truncate(data.len() - 16);
+
+        let decoded = Pool::decode(&data).expect("legacy pool decodes");
+        assert_eq!(decoded.virtual_quote_reserves, 0);
+        assert_eq!(decoded.coin_creator, pool.coin_creator);
+        assert_eq!(decoded.is_cashback_coin, pool.is_cashback_coin);
     }
 }

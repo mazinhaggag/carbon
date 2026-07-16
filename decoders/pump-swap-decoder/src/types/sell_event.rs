@@ -28,4 +28,11 @@ pub struct SellEvent {
     pub coin_creator_fee: u64,
     pub cashback_fee_basis_points: u64,
     pub cashback: u64,
+    pub buyback_fee_basis_points: u64,
+    pub buyback_fee: u64,
+    /// Appended 2026-07-15: effective quote reserves are
+    /// `pool_quote_token_reserves + virtual_quote_reserves`.
+    pub virtual_quote_reserves: i128,
+    pub can_boost: bool,
+    pub base_supply: u64,
 }

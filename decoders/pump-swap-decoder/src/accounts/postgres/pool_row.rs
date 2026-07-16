@@ -2,6 +2,7 @@
 use carbon_core::account::AccountMetadata;
 use carbon_core::postgres::metadata::AccountRowMetadata;
 use carbon_core::postgres::primitives::Pubkey;
+use carbon_core::postgres::primitives::I128;
 use carbon_core::postgres::primitives::U16;
 use carbon_core::postgres::primitives::U64;
 use carbon_core::postgres::primitives::U8;
@@ -22,6 +23,7 @@ pub struct PoolRow {
     pub coin_creator: Pubkey,
     pub is_mayhem_mode: bool,
     pub is_cashback_coin: bool,
+    pub virtual_quote_reserves: I128,
 }
 
 impl PoolRow {
@@ -40,6 +42,7 @@ impl PoolRow {
             coin_creator: source.coin_creator.into(),
             is_mayhem_mode: source.is_mayhem_mode,
             is_cashback_coin: source.is_cashback_coin,
+            virtual_quote_reserves: source.virtual_quote_reserves.into(),
         }
     }
 }
@@ -68,6 +71,7 @@ impl TryFrom<PoolRow> for crate::accounts::pool::Pool {
             coin_creator: *source.coin_creator,
             is_mayhem_mode: source.is_mayhem_mode,
             is_cashback_coin: source.is_cashback_coin,
+            virtual_quote_reserves: *source.virtual_quote_reserves,
         })
     }
 }
@@ -93,6 +97,7 @@ impl carbon_core::postgres::operations::Table for crate::accounts::pool::Pool {
             "coin_creator",
             "is_mayhem_mode",
             "is_cashback_coin",
+            "virtual_quote_reserves",
         ]
     }
 }
@@ -115,9 +120,10 @@ impl carbon_core::postgres::operations::Insert for PoolRow {
                 "coin_creator",
                 "is_mayhem_mode",
                 "is_cashback_coin",
+                "virtual_quote_reserves",
                 __pubkey, __slot
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
             )"#,
         )
         .bind(self.pool_bump)
@@ -132,6 +138,7 @@ impl carbon_core::postgres::operations::Insert for PoolRow {
         .bind(self.coin_creator)
         .bind(self.is_mayhem_mode)
         .bind(self.is_cashback_coin)
+        .bind(&self.virtual_quote_reserves)
         .bind(self.account_metadata.pubkey)
         .bind(&self.account_metadata.slot)
         .execute(pool)
@@ -158,9 +165,10 @@ impl carbon_core::postgres::operations::Upsert for PoolRow {
                 "coin_creator",
                 "is_mayhem_mode",
                 "is_cashback_coin",
+                "virtual_quote_reserves",
                 __pubkey, __slot
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
             ) ON CONFLICT (
                 __pubkey
             ) DO UPDATE SET
@@ -176,6 +184,7 @@ impl carbon_core::postgres::operations::Upsert for PoolRow {
                 "coin_creator" = EXCLUDED."coin_creator",
                 "is_mayhem_mode" = EXCLUDED."is_mayhem_mode",
                 "is_cashback_coin" = EXCLUDED."is_cashback_coin",
+                "virtual_quote_reserves" = EXCLUDED."virtual_quote_reserves",
                 __slot = EXCLUDED.__slot
             "#,
         )
@@ -191,6 +200,7 @@ impl carbon_core::postgres::operations::Upsert for PoolRow {
         .bind(self.coin_creator)
         .bind(self.is_mayhem_mode)
         .bind(self.is_cashback_coin)
+        .bind(&self.virtual_quote_reserves)
         .bind(self.account_metadata.pubkey)
         .bind(&self.account_metadata.slot)
         .execute(pool)
@@ -262,6 +272,7 @@ impl sqlx_migrator::Operation<sqlx::Postgres> for PoolMigrationOperation {
                 "coin_creator" BYTEA NOT NULL,
                 "is_mayhem_mode" BOOLEAN NOT NULL,
                 "is_cashback_coin" BOOLEAN NOT NULL,
+                "virtual_quote_reserves" NUMERIC(39) NOT NULL DEFAULT 0,
                 -- Account metadata
                 __pubkey BYTEA NOT NULL,
                 __slot NUMERIC(20),
