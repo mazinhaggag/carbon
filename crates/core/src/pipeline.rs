@@ -685,88 +685,110 @@ impl Pipeline {
                 }
                 update = update_receiver.recv() => {
                     match update {
-                        Some((update, datasource_id)) => {
+                        Some(first_update) => {
+                            // Drain a batch of already-queued updates per wakeup.
+                            // Re-entering the select! for every update recreates
+                            // each arm's future (including the ctrl_c signal
+                            // registration) and yields to the scheduler per
+                            // update, which caps drain throughput when the
+                            // runtime is busy. Amortize that cost across a
+                            // batch, and record the per-update counters once
+                            // per batch.
+                            const UPDATE_BATCH_MAX: u64 = 256;
+
                             // Skip the per-update metrics calls entirely when no
                             // collector is registered (how the bot runs), avoiding
                             // the await overhead on the hot path.
                             let metrics_enabled = !self.metrics.is_empty();
+                            let mut received: u64 = 0;
+                            let mut duplicates: u64 = 0;
+                            let mut successful: u64 = 0;
+                            let mut failed: u64 = 0;
 
-                            if metrics_enabled {
-                                self.metrics.increment_counter("updates_received", 1).await?;
-                            }
+                            let mut next = Some(first_update);
+                            while let Some((update, datasource_id)) = next.take() {
+                                received += 1;
 
-                            let start = Instant::now();
-                            // Dedupe: if duplicate drop and continue
-                            if self.is_duplicate(&update) {
-                                if metrics_enabled {
-                                    self.metrics.increment_counter("updates_duplicate_dropped", 1).await?;
-                                }
-                                continue;
-                            }
-
-                            // Normalize timestamps and record slot->time index without delay
-                            let mut update = update;
-                            match &mut update {
-                                Update::BlockDetails(block) => {
-                                    if let Some(bt) = block.block_time {
-                                        self.slot_time_index.put(block.slot, bt);
-                                    }
-                                }
-                                Update::Transaction(tx) => {
-                                    if tx.block_time.is_none() {
-                                        if let Some(bt) = self.slot_time_index.get(&tx.slot).copied() {
-                                            tx.block_time = Some(bt);
+                                let start = Instant::now();
+                                // Dedupe: if duplicate drop and continue with the batch
+                                if self.is_duplicate(&update) {
+                                    duplicates += 1;
+                                } else {
+                                    // Normalize timestamps and record slot->time index without delay
+                                    let mut update = update;
+                                    match &mut update {
+                                        Update::BlockDetails(block) => {
+                                            if let Some(bt) = block.block_time {
+                                                self.slot_time_index.put(block.slot, bt);
+                                            }
                                         }
+                                        Update::Transaction(tx) => {
+                                            if tx.block_time.is_none() {
+                                                if let Some(bt) = self.slot_time_index.get(&tx.slot).copied() {
+                                                    tx.block_time = Some(bt);
+                                                }
+                                            }
+                                        }
+                                        _ => {}
                                     }
+
+                                    // Record datasource stats (win and last slot)
+                                    if let Some(slot) = extract_slot(&update) {
+                                        self.record_win(&datasource_id);
+                                        self.record_last_slot(&datasource_id, slot);
+                                    }
+
+                                    // Capture a cheap identifier before `update` is moved into
+                                    // process, so a failure can be logged without cloning it.
+                                    let update_id = UpdateId::new(&update);
+
+                                    let process_result = self.process(update, datasource_id).await;
+
+                                    if metrics_enabled {
+                                        let time_taken_nanoseconds = start.elapsed().as_nanos();
+                                        let time_taken_milliseconds = time_taken_nanoseconds / 1_000_000;
+
+                                        self
+                                            .metrics
+                                            .record_histogram("updates_process_time_nanoseconds", time_taken_nanoseconds as f64)
+                                            .await?;
+
+                                        self
+                                            .metrics
+                                            .record_histogram("updates_process_time_milliseconds", time_taken_milliseconds as f64)
+                                            .await?;
+                                    }
+
+                                    match process_result {
+                                        Ok(_) => {
+                                            successful += 1;
+                                            log::trace!("processed update")
+                                        }
+                                        Err(error) => {
+                                            failed += 1;
+                                            log::error!("error processing update ({update_id}): {error:?}");
+                                        }
+                                    };
                                 }
-                                _ => {}
+
+                                if received >= UPDATE_BATCH_MAX {
+                                    break;
+                                }
+                                next = update_receiver.try_recv().ok();
                             }
-
-                            // Record datasource stats (win and last slot)
-                            if let Some(slot) = extract_slot(&update) {
-                                self.record_win(&datasource_id);
-                                self.record_last_slot(&datasource_id, slot);
-                            }
-
-                            // Capture a cheap identifier before `update` is moved into
-                            // process, so a failure can be logged without cloning it.
-                            let update_id = UpdateId::new(&update);
-
-                            let process_result = self.process(update, datasource_id).await;
 
                             if metrics_enabled {
-                                let time_taken_nanoseconds = start.elapsed().as_nanos();
-                                let time_taken_milliseconds = time_taken_nanoseconds / 1_000_000;
-
-                                self
-                                    .metrics
-                                    .record_histogram("updates_process_time_nanoseconds", time_taken_nanoseconds as f64)
-                                    .await?;
-
-                                self
-                                    .metrics
-                                    .record_histogram("updates_process_time_milliseconds", time_taken_milliseconds as f64)
-                                    .await?;
-                            }
-
-                            match process_result {
-                                Ok(_) => {
-                                    if metrics_enabled {
-                                        self.metrics.increment_counter("updates_successful", 1).await?;
-                                    }
-
-                                    log::trace!("processed update")
+                                self.metrics.increment_counter("updates_received", received).await?;
+                                if duplicates > 0 {
+                                    self.metrics.increment_counter("updates_duplicate_dropped", duplicates).await?;
                                 }
-                                Err(error) => {
-                                    log::error!("error processing update ({update_id}): {error:?}");
-                                    if metrics_enabled {
-                                        self.metrics.increment_counter("updates_failed", 1).await?;
-                                    }
+                                if successful > 0 {
+                                    self.metrics.increment_counter("updates_successful", successful).await?;
                                 }
-                            };
-
-                            if metrics_enabled {
-                                self.metrics.increment_counter("updates_processed", 1).await?;
+                                if failed > 0 {
+                                    self.metrics.increment_counter("updates_failed", failed).await?;
+                                }
+                                self.metrics.increment_counter("updates_processed", successful + failed).await?;
                                 self.metrics
                                     .update_gauge("updates_queued", update_receiver.len() as f64)
                                     .await?;
