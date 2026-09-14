@@ -13,6 +13,13 @@ pub struct BondingCurve {
     pub creator: Pubkey,
     pub is_mayhem_mode: bool,
     pub is_cashback_coin: bool,
+    /// Appended by the 2026-09 pump IDL: what the curve is quoted in (default
+    /// for SOL), the curve's own creator fee, whether the creator may still
+    /// change it, and whether that fee is paid out to holders.
+    pub quote_mint: Pubkey,
+    pub creator_fee_bps: u64,
+    pub can_edit_creator_fee: bool,
+    pub is_holder_reward: bool,
 }
 
 impl BondingCurve {
@@ -25,10 +32,89 @@ impl BondingCurve {
             return None;
         }
 
-        let mut data_slice = data;
-
-        data_slice = &data_slice[8..];
+        // Zero-pad so curves written before the appended fields still decode,
+        // with the missing tail reading as default/0/false.
+        let mut padded = data[8..].to_vec();
+        padded.extend_from_slice(&[0u8; APPENDED_LEN]);
+        let mut data_slice = padded.as_slice();
 
         borsh::BorshDeserialize::deserialize(&mut data_slice).ok()
+    }
+}
+
+/// quote_mint + creator_fee_bps + can_edit_creator_fee + is_holder_reward.
+const APPENDED_LEN: usize = 32 + 8 + 1 + 1;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    const DISCRIMINATOR: [u8; 8] = [23, 183, 248, 55, 96, 216, 172, 96];
+
+    fn fixture() -> BondingCurve {
+        BondingCurve {
+            virtual_token_reserves: 1_073_000_000_000_000,
+            virtual_sol_reserves: 30_000_000_000,
+            real_token_reserves: 793_100_000_000_000,
+            real_sol_reserves: 0,
+            token_total_supply: 1_000_000_000_000_000,
+            complete: false,
+            creator: Pubkey::new_unique(),
+            is_mayhem_mode: false,
+            is_cashback_coin: true,
+            quote_mint: Pubkey::new_unique(),
+            creator_fee_bps: 300,
+            can_edit_creator_fee: true,
+            is_holder_reward: true,
+        }
+    }
+
+    fn account_data(curve: &BondingCurve) -> Vec<u8> {
+        let mut data = DISCRIMINATOR.to_vec();
+        data.extend_from_slice(&borsh::to_vec(curve).expect("serialize"));
+        data
+    }
+
+    #[test]
+    fn decodes_current_layout() {
+        let curve = fixture();
+        assert_eq!(BondingCurve::decode(&account_data(&curve)), Some(curve));
+    }
+
+    #[test]
+    fn decodes_legacy_layout_without_appended_fields() {
+        let curve = fixture();
+        let mut data = account_data(&curve);
+        data.truncate(data.len() - APPENDED_LEN);
+
+        let decoded = BondingCurve::decode(&data).expect("legacy curve decodes");
+        assert_eq!(decoded.quote_mint, Pubkey::default());
+        assert_eq!(decoded.creator_fee_bps, 0);
+        assert!(!decoded.can_edit_creator_fee);
+        assert!(!decoded.is_holder_reward);
+        assert_eq!(decoded.creator, curve.creator);
+        assert!(decoded.is_cashback_coin);
+    }
+
+    #[test]
+    fn decodes_a_live_holder_reward_curve() {
+        // Bonding curve of GTkkpxBaEZqHRJ1E7cdsnH4qikpR9gmLNR5p2cJeud4V, quoted
+        // in baton, 3% creator fee paid to holders (151 bytes, padded on chain).
+        let hex = "17b7f83760d8ac601b90f309e46d010075d5108f2d0100001bf8e0bd526f00000e7aba7ebc0000000080c6a47e8d030000b077ee3d04f7b88dd2bbe030389f2ede1310a1a489b2bd77f90b848277067cbb0000f7bd81f9d987f58e7cc946b0689839d8fd75d8f1bc3ca9f7f53b0ea5f99686ff2c0100000000000000010000000000000000000000000000000000000000000000000000";
+        let data: Vec<u8> = (0..hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+            .collect();
+
+        let curve = BondingCurve::decode(&data).expect("live curve decodes");
+        assert_eq!(
+            curve.quote_mint,
+            Pubkey::from_str("Hg5Ja55T5wESq4vyFoiVCMeHXtGyVA69X2UHq8hgpump").unwrap()
+        );
+        assert_eq!(curve.creator_fee_bps, 300);
+        assert!(!curve.can_edit_creator_fee);
+        assert!(curve.is_holder_reward);
+        assert!(!curve.complete);
     }
 }

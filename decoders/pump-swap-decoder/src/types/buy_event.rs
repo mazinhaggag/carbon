@@ -43,4 +43,8 @@ pub struct BuyEvent {
     pub virtual_quote_reserves: i128,
     pub can_boost: bool,
     pub base_supply: u64,
+    /// Appended by the 2026-09 pump-amm IDL: the share of the trade paid to
+    /// the coin's holders instead of its creator.
+    pub holder_rewards_bps: u64,
+    pub holder_rewards: u64,
 }

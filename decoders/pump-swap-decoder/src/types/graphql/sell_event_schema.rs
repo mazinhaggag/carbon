@@ -38,6 +38,8 @@ pub struct SellEventGraphQL {
     pub virtual_quote_reserves: I128,
     pub can_boost: bool,
     pub base_supply: U64,
+    pub holder_rewards_bps: U64,
+    pub holder_rewards: U64,
 }
 
 impl From<crate::types::SellEvent> for SellEventGraphQL {
@@ -107,6 +109,8 @@ impl From<crate::types::SellEvent> for SellEventGraphQL {
             ),
             can_boost: original.can_boost,
             base_supply: carbon_core::graphql::primitives::U64(original.base_supply),
+            holder_rewards_bps: carbon_core::graphql::primitives::U64(original.holder_rewards_bps),
+            holder_rewards: carbon_core::graphql::primitives::U64(original.holder_rewards),
         }
     }
 }

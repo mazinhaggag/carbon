@@ -43,6 +43,10 @@ pub struct BuyEventEvent {
     pub virtual_quote_reserves: i128,
     pub can_boost: bool,
     pub base_supply: u64,
+    /// Appended by the 2026-09 pump-amm IDL: the share of the trade paid to
+    /// the coin's holders instead of its creator.
+    pub holder_rewards_bps: u64,
+    pub holder_rewards: u64,
 }
 
 impl BuyEventEvent {
@@ -56,10 +60,10 @@ impl BuyEventEvent {
         }
 
         // Zero-pad so events emitted before the appended fields
-        // (buyback_*, virtual_quote_reserves, can_boost, base_supply)
-        // still decode, with the missing tail reading as 0/false.
+        // (buyback_*, virtual_quote_reserves, can_boost, base_supply,
+        // holder_rewards_*) still decode, with the missing tail reading as 0/false.
         let mut padded = data[8..].to_vec();
-        padded.extend_from_slice(&[0u8; 41]);
+        padded.extend_from_slice(&[0u8; 57]);
         let mut data_slice = padded.as_slice();
 
         borsh::BorshDeserialize::deserialize(&mut data_slice).ok()
@@ -111,6 +115,8 @@ mod tests {
             virtual_quote_reserves: 25_000_000_000_i128,
             can_boost: true,
             base_supply: 1_000_000_000_000_000,
+            holder_rewards_bps: 100,
+            holder_rewards: 10_000_000,
         }
     }
 
@@ -130,7 +136,7 @@ mod tests {
     fn decodes_legacy_layout_without_appended_fields() {
         let event = fixture();
         let mut data = event_data(&event);
-        data.truncate(data.len() - 41);
+        data.truncate(data.len() - 57);
 
         let decoded = BuyEventEvent::decode(&data).expect("legacy event decodes");
         assert_eq!(decoded.virtual_quote_reserves, 0);
@@ -138,6 +144,8 @@ mod tests {
         assert_eq!(decoded.buyback_fee, 0);
         assert!(!decoded.can_boost);
         assert_eq!(decoded.base_supply, 0);
+        assert_eq!(decoded.holder_rewards_bps, 0);
+        assert_eq!(decoded.holder_rewards, 0);
         assert_eq!(decoded.user_quote_amount_in, event.user_quote_amount_in);
         assert_eq!(decoded.ix_name, event.ix_name);
     }

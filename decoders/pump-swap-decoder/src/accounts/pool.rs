@@ -20,7 +20,16 @@ pub struct Pool {
     /// Appended 2026-07-15: effective quote reserves for quoting are
     /// `pool_quote_token_account.amount + virtual_quote_reserves`.
     pub virtual_quote_reserves: i128,
+    /// Appended by the 2026-09 pump-amm IDL: the pool's own creator fee (0
+    /// means the fee config's tier applies), whether the creator may still
+    /// change it, and whether it is paid out to holders.
+    pub creator_fee_bps: u64,
+    pub can_edit_creator_fee: bool,
+    pub is_holder_reward: bool,
 }
+
+/// virtual_quote_reserves + creator_fee_bps + can_edit_creator_fee + is_holder_reward.
+const APPENDED_LEN: usize = 16 + 8 + 1 + 1;
 
 impl Pool {
     pub fn decode(data: &[u8]) -> Option<Self> {
@@ -32,10 +41,10 @@ impl Pool {
             return None;
         }
 
-        // Zero-pad so pool accounts written before virtual_quote_reserves was
-        // appended still decode, with the missing tail reading as 0.
+        // Zero-pad so pool accounts written before the appended fields still
+        // decode, with the missing tail reading as 0/false.
         let mut padded = data[8..].to_vec();
-        padded.extend_from_slice(&[0u8; 16]);
+        padded.extend_from_slice(&[0u8; APPENDED_LEN]);
         let mut data_slice = padded.as_slice();
 
         borsh::BorshDeserialize::deserialize(&mut data_slice).ok()
@@ -63,6 +72,9 @@ mod tests {
             is_mayhem_mode: false,
             is_cashback_coin: true,
             virtual_quote_reserves: 30_000_000_000_i128,
+            creator_fee_bps: 100,
+            can_edit_creator_fee: false,
+            is_holder_reward: true,
         }
     }
 
@@ -82,11 +94,42 @@ mod tests {
     fn decodes_legacy_layout_without_virtual_quote_reserves() {
         let pool = fixture();
         let mut data = account_data(&pool);
-        data.truncate(data.len() - 16);
+        data.truncate(data.len() - APPENDED_LEN);
 
         let decoded = Pool::decode(&data).expect("legacy pool decodes");
         assert_eq!(decoded.virtual_quote_reserves, 0);
+        assert_eq!(decoded.creator_fee_bps, 0);
+        assert!(!decoded.is_holder_reward);
         assert_eq!(decoded.coin_creator, pool.coin_creator);
         assert_eq!(decoded.is_cashback_coin, pool.is_cashback_coin);
+    }
+
+    #[test]
+    fn decodes_pools_without_creator_fee_fields() {
+        let pool = fixture();
+        let mut data = account_data(&pool);
+        data.truncate(data.len() - 10);
+
+        let decoded = Pool::decode(&data).expect("pool decodes");
+        assert_eq!(decoded.virtual_quote_reserves, pool.virtual_quote_reserves);
+        assert_eq!(decoded.creator_fee_bps, 0);
+    }
+
+    #[test]
+    fn decodes_a_live_holder_reward_pool() {
+        // baton/PUMP canonical pool Cb7ZRgPLhji3Th7htXyKEqbXvNjPpeTvckXuWakBUhXu:
+        // 1% creator fee paid to holders.
+        let hex = "f19a6d0411b16dbcff0000f24203fdc61e014ed95fe22c2bd428b2a5ba82cbaa4c269a63f8b5e672510b1af7bd81f9d987f58e7cc946b0689839d8fd75d8f1bc3ca9f7f53b0ea5f99686ff0c45f7df8d9e72956284933f6d98b757032e83df84604fb5e117fff61d5b12f9605744a50890c8074b159750d31746b2f43877e70eb276e35b80958cf2548e424b8de8f8835059c36f938c9303a8908852ba8347c0a029a8db199d01879fa1535bf6dcc17e1d55d99baacc9023c93b04f6684f837c73642a3f527dce62b4be4b0e00c33400160000abda2d04c4daa1a6690ad3b487dc48eac1010d5949b070987b21519f1fe20bd500009a976d3e88000000000000000000000064000000000000000001000000000000000000000000000000000000000000000000000000000000";
+        let data: Vec<u8> = (0..hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+            .collect();
+
+        let pool = Pool::decode(&data).expect("live pool decodes");
+        assert_eq!(pool.index, 0);
+        assert_eq!(pool.virtual_quote_reserves, 585_162_921_882);
+        assert_eq!(pool.creator_fee_bps, 100);
+        assert!(!pool.can_edit_creator_fee);
+        assert!(pool.is_holder_reward);
     }
 }

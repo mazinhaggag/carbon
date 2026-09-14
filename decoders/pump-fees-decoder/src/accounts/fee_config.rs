@@ -14,7 +14,14 @@ pub struct FeeConfig {
     pub flat_fees: Fees,
     /// The fee tiers
     pub fee_tiers: Vec<FeeTier>,
+    /// Appended by later pump-fees IDLs: tiers for stablecoin-quoted coins
+    /// (market cap in quote units) and the flat fees for any other quote.
+    pub stable_fee_tiers: Vec<FeeTier>,
+    pub exotic_flat_fees: Fees,
 }
+
+/// Empty stable_fee_tiers (4) + exotic_flat_fees (24).
+const APPENDED_LEN: usize = 4 + 24;
 
 impl FeeConfig {
     pub fn decode(data: &[u8]) -> Option<Self> {
@@ -26,10 +33,83 @@ impl FeeConfig {
             return None;
         }
 
-        let mut data_slice = data;
-
-        data_slice = &data_slice[8..];
+        // Zero-pad so configs written before the appended fields still decode,
+        // with no stable tiers and zero exotic fees.
+        let mut padded = data[8..].to_vec();
+        padded.extend_from_slice(&[0u8; APPENDED_LEN]);
+        let mut data_slice = padded.as_slice();
 
         borsh::BorshDeserialize::deserialize(&mut data_slice).ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DISCRIMINATOR: [u8; 8] = [143, 52, 146, 187, 219, 123, 76, 155];
+
+    fn fees(lp_fee_bps: u64, protocol_fee_bps: u64, creator_fee_bps: u64) -> Fees {
+        Fees {
+            lp_fee_bps,
+            protocol_fee_bps,
+            creator_fee_bps,
+        }
+    }
+
+    fn fixture() -> FeeConfig {
+        FeeConfig {
+            bump: 255,
+            admin: Pubkey::new_unique(),
+            flat_fees: fees(25, 5, 0),
+            fee_tiers: vec![
+                FeeTier {
+                    market_cap_lamports_threshold: 0,
+                    fees: fees(2, 93, 30),
+                },
+                FeeTier {
+                    market_cap_lamports_threshold: 420_000_000_000,
+                    fees: fees(20, 5, 95),
+                },
+            ],
+            stable_fee_tiers: vec![FeeTier {
+                market_cap_lamports_threshold: 59_000_000_000,
+                fees: fees(20, 5, 95),
+            }],
+            exotic_flat_fees: fees(0, 95, 30),
+        }
+    }
+
+    fn account_data(config: &FeeConfig) -> Vec<u8> {
+        let mut data = DISCRIMINATOR.to_vec();
+        data.extend_from_slice(&borsh::to_vec(config).expect("serialize"));
+        data
+    }
+
+    #[test]
+    fn decodes_current_layout() {
+        let config = fixture();
+        assert_eq!(FeeConfig::decode(&account_data(&config)), Some(config));
+    }
+
+    #[test]
+    fn decodes_legacy_layout_without_appended_fields() {
+        let mut config = fixture();
+        config.stable_fee_tiers.clear();
+        let mut data = account_data(&config);
+        data.truncate(data.len() - APPENDED_LEN);
+
+        let decoded = FeeConfig::decode(&data).expect("legacy config decodes");
+        assert!(decoded.stable_fee_tiers.is_empty());
+        assert_eq!(decoded.exotic_flat_fees, fees(0, 0, 0));
+        assert_eq!(decoded.fee_tiers, config.fee_tiers);
+    }
+
+    #[test]
+    fn ignores_trailing_account_space() {
+        let config = fixture();
+        let mut data = account_data(&config);
+        data.resize(4097, 0);
+        assert_eq!(FeeConfig::decode(&data), Some(config));
     }
 }

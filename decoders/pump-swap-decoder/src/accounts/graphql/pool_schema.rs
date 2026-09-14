@@ -22,6 +22,9 @@ pub struct PoolGraphQL {
     pub is_mayhem_mode: bool,
     pub is_cashback_coin: bool,
     pub virtual_quote_reserves: I128,
+    pub creator_fee_bps: U64,
+    pub can_edit_creator_fee: bool,
+    pub is_holder_reward: bool,
 }
 
 impl TryFrom<crate::accounts::postgres::PoolRow> for PoolGraphQL {
@@ -48,6 +51,9 @@ impl TryFrom<crate::accounts::postgres::PoolRow> for PoolGraphQL {
             virtual_quote_reserves: carbon_core::graphql::primitives::I128(
                 *row.virtual_quote_reserves,
             ),
+            creator_fee_bps: carbon_core::graphql::primitives::U64(*row.creator_fee_bps),
+            can_edit_creator_fee: row.can_edit_creator_fee,
+            is_holder_reward: row.is_holder_reward,
         })
     }
 }

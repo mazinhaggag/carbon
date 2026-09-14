@@ -17,6 +17,10 @@ pub struct BondingCurveRow {
     pub creator: Pubkey,
     pub is_mayhem_mode: bool,
     pub is_cashback_coin: bool,
+    pub quote_mint: Pubkey,
+    pub creator_fee_bps: U64,
+    pub can_edit_creator_fee: bool,
+    pub is_holder_reward: bool,
 }
 
 impl BondingCurveRow {
@@ -35,6 +39,10 @@ impl BondingCurveRow {
             creator: source.creator.into(),
             is_mayhem_mode: source.is_mayhem_mode,
             is_cashback_coin: source.is_cashback_coin,
+            quote_mint: source.quote_mint.into(),
+            creator_fee_bps: source.creator_fee_bps.into(),
+            can_edit_creator_fee: source.can_edit_creator_fee,
+            is_holder_reward: source.is_holder_reward,
         }
     }
 }
@@ -52,6 +60,10 @@ impl TryFrom<BondingCurveRow> for crate::accounts::bonding_curve::BondingCurve {
             creator: *source.creator,
             is_mayhem_mode: source.is_mayhem_mode,
             is_cashback_coin: source.is_cashback_coin,
+            quote_mint: *source.quote_mint,
+            creator_fee_bps: *source.creator_fee_bps,
+            can_edit_creator_fee: source.can_edit_creator_fee,
+            is_holder_reward: source.is_holder_reward,
         })
     }
 }
@@ -74,6 +86,10 @@ impl carbon_core::postgres::operations::Table for crate::accounts::bonding_curve
             "creator",
             "is_mayhem_mode",
             "is_cashback_coin",
+            "quote_mint",
+            "creator_fee_bps",
+            "can_edit_creator_fee",
+            "is_holder_reward",
         ]
     }
 }
@@ -93,9 +109,13 @@ impl carbon_core::postgres::operations::Insert for BondingCurveRow {
                 "creator",
                 "is_mayhem_mode",
                 "is_cashback_coin",
+                "quote_mint",
+                "creator_fee_bps",
+                "can_edit_creator_fee",
+                "is_holder_reward",
                 __pubkey, __slot
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
             )"#,
         )
         .bind(&self.virtual_token_reserves)
@@ -107,6 +127,10 @@ impl carbon_core::postgres::operations::Insert for BondingCurveRow {
         .bind(self.creator)
         .bind(self.is_mayhem_mode)
         .bind(self.is_cashback_coin)
+        .bind(self.quote_mint)
+        .bind(&self.creator_fee_bps)
+        .bind(self.can_edit_creator_fee)
+        .bind(self.is_holder_reward)
         .bind(self.account_metadata.pubkey)
         .bind(&self.account_metadata.slot)
         .execute(pool)
@@ -130,9 +154,13 @@ impl carbon_core::postgres::operations::Upsert for BondingCurveRow {
                 "creator",
                 "is_mayhem_mode",
                 "is_cashback_coin",
+                "quote_mint",
+                "creator_fee_bps",
+                "can_edit_creator_fee",
+                "is_holder_reward",
                 __pubkey, __slot
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
             ) ON CONFLICT (
                 __pubkey
             ) DO UPDATE SET
@@ -145,6 +173,10 @@ impl carbon_core::postgres::operations::Upsert for BondingCurveRow {
                 "creator" = EXCLUDED."creator",
                 "is_mayhem_mode" = EXCLUDED."is_mayhem_mode",
                 "is_cashback_coin" = EXCLUDED."is_cashback_coin",
+                "quote_mint" = EXCLUDED."quote_mint",
+                "creator_fee_bps" = EXCLUDED."creator_fee_bps",
+                "can_edit_creator_fee" = EXCLUDED."can_edit_creator_fee",
+                "is_holder_reward" = EXCLUDED."is_holder_reward",
                 __slot = EXCLUDED.__slot
             "#,
         )
@@ -157,6 +189,10 @@ impl carbon_core::postgres::operations::Upsert for BondingCurveRow {
         .bind(self.creator)
         .bind(self.is_mayhem_mode)
         .bind(self.is_cashback_coin)
+        .bind(self.quote_mint)
+        .bind(&self.creator_fee_bps)
+        .bind(self.can_edit_creator_fee)
+        .bind(self.is_holder_reward)
         .bind(self.account_metadata.pubkey)
         .bind(&self.account_metadata.slot)
         .execute(pool)
@@ -225,6 +261,10 @@ impl sqlx_migrator::Operation<sqlx::Postgres> for BondingCurveMigrationOperation
                 "creator" BYTEA NOT NULL,
                 "is_mayhem_mode" BOOLEAN NOT NULL,
                 "is_cashback_coin" BOOLEAN NOT NULL,
+                "quote_mint" BYTEA NOT NULL DEFAULT decode(repeat('00', 32), 'hex'),
+                "creator_fee_bps" NUMERIC(20) NOT NULL DEFAULT 0,
+                "can_edit_creator_fee" BOOLEAN NOT NULL DEFAULT FALSE,
+                "is_holder_reward" BOOLEAN NOT NULL DEFAULT FALSE,
                 -- Account metadata
                 __pubkey BYTEA NOT NULL,
                 __slot NUMERIC(20),
