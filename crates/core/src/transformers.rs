@@ -163,6 +163,18 @@ fn process_instructions<F1, F2>(
 
                     for inner_inst in &inner_tx.instructions {
                         let stack_height = inner_inst.stack_height.unwrap_or(1) as usize;
+                        // A CPI nested deeper than the path we track is skipped
+                        // rather than indexing past the stack: one such
+                        // instruction must not take the whole pipeline down.
+                        if stack_height == 0 || stack_height > MAX_INSTRUCTION_STACK_DEPTH {
+                            log::warn!(
+                                "skipping inner instruction at stack height {} (max {}) in {}",
+                                stack_height,
+                                MAX_INSTRUCTION_STACK_DEPTH,
+                                transaction_metadata.signature
+                            );
+                            continue;
+                        }
                         if stack_height > prev_height {
                             path_stack[stack_height - 1] = 0;
                         } else {

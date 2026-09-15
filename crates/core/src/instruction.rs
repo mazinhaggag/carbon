@@ -469,7 +469,7 @@ impl From<InstructionsWithMetadata> for NestedInstructions {
 }
 
 // https://github.com/anza-xyz/agave/blob/master/program-runtime/src/execution_budget.rs#L7
-pub const MAX_INSTRUCTION_STACK_DEPTH: usize = 5;
+pub const MAX_INSTRUCTION_STACK_DEPTH: usize = 16;
 
 pub struct UnsafeNestedBuilder {
     nested_ixs: Vec<NestedInstruction>,
@@ -491,8 +491,17 @@ impl UnsafeNestedBuilder {
         for (metadata, instruction) in instructions {
             let stack_height = metadata.stack_height as usize;
 
-            assert!(stack_height > 0);
-            assert!(stack_height <= MAX_INSTRUCTION_STACK_DEPTH);
+            // The transformer never emits these, but a bad height must skip
+            // the instruction, not abort the pipeline.
+            if stack_height == 0 || stack_height > MAX_INSTRUCTION_STACK_DEPTH {
+                log::warn!(
+                    "skipping instruction at stack height {} (max {}) in {}",
+                    stack_height,
+                    MAX_INSTRUCTION_STACK_DEPTH,
+                    metadata.transaction_metadata.signature
+                );
+                continue;
+            }
 
             for ptr in &mut self.level_ptrs[stack_height..] {
                 *ptr = None;
