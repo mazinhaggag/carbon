@@ -21,6 +21,7 @@ pub mod evt_create_meteora_migration_metadata_event;
 pub mod evt_creator_withdraw_surplus_event;
 pub mod evt_curve_complete_event;
 pub mod evt_initialize_pool_event;
+pub mod evt_initialize_pool_with_transfer_hook_event;
 pub mod evt_partner_metadata_event;
 pub mod evt_partner_withdraw_migration_fee_event;
 pub mod evt_partner_withdraw_surplus_event;
@@ -33,6 +34,7 @@ pub mod evt_withdraw_leftover_event;
 pub mod evt_withdraw_migration_fee_event;
 pub mod initialize_virtual_pool_with_spl_token;
 pub mod initialize_virtual_pool_with_token2022;
+pub mod initialize_virtual_pool_with_token2022_transfer_hook;
 pub mod migrate_meteora_damm;
 pub mod migrate_meteora_damm_claim_lp_token;
 pub mod migrate_meteora_damm_lock_lp_token;
@@ -73,6 +75,9 @@ pub enum DynamicBondingCurveInstruction {
     ),
     InitializeVirtualPoolWithToken2022(
         initialize_virtual_pool_with_token2022::InitializeVirtualPoolWithToken2022,
+    ),
+    InitializeVirtualPoolWithToken2022TransferHook(
+        initialize_virtual_pool_with_token2022_transfer_hook::InitializeVirtualPoolWithToken2022TransferHook,
     ),
     MigrateMeteoraDamm(migrate_meteora_damm::MigrateMeteoraDamm),
     MigrateMeteoraDammClaimLpToken(
@@ -117,6 +122,9 @@ pub enum DynamicBondingCurveInstruction {
     ),
     EvtCurveCompleteEvent(evt_curve_complete_event::EvtCurveCompleteEvent),
     EvtInitializePoolEvent(evt_initialize_pool_event::EvtInitializePoolEvent),
+    EvtInitializePoolWithTransferHookEvent(
+        evt_initialize_pool_with_transfer_hook_event::EvtInitializePoolWithTransferHookEvent,
+    ),
     EvtPartnerMetadataEvent(evt_partner_metadata_event::EvtPartnerMetadataEvent),
     EvtPartnerWithdrawMigrationFeeEvent(
         evt_partner_withdraw_migration_fee_event::EvtPartnerWithdrawMigrationFeeEvent,
@@ -159,6 +167,7 @@ impl carbon_core::instruction::InstructionDecoder<'_> for DynamicBondingCurveDec
             DynamicBondingCurveInstruction::CreatorWithdrawSurplus => creator_withdraw_surplus::CreatorWithdrawSurplus,
             DynamicBondingCurveInstruction::InitializeVirtualPoolWithSplToken => initialize_virtual_pool_with_spl_token::InitializeVirtualPoolWithSplToken,
             DynamicBondingCurveInstruction::InitializeVirtualPoolWithToken2022 => initialize_virtual_pool_with_token2022::InitializeVirtualPoolWithToken2022,
+            DynamicBondingCurveInstruction::InitializeVirtualPoolWithToken2022TransferHook => initialize_virtual_pool_with_token2022_transfer_hook::InitializeVirtualPoolWithToken2022TransferHook,
             DynamicBondingCurveInstruction::MigrateMeteoraDamm => migrate_meteora_damm::MigrateMeteoraDamm,
             DynamicBondingCurveInstruction::MigrateMeteoraDammClaimLpToken => migrate_meteora_damm_claim_lp_token::MigrateMeteoraDammClaimLpToken,
             DynamicBondingCurveInstruction::MigrateMeteoraDammLockLpToken => migrate_meteora_damm_lock_lp_token::MigrateMeteoraDammLockLpToken,
@@ -184,6 +193,7 @@ impl carbon_core::instruction::InstructionDecoder<'_> for DynamicBondingCurveDec
             DynamicBondingCurveInstruction::EvtCreatorWithdrawSurplusEvent => evt_creator_withdraw_surplus_event::EvtCreatorWithdrawSurplusEvent,
             DynamicBondingCurveInstruction::EvtCurveCompleteEvent => evt_curve_complete_event::EvtCurveCompleteEvent,
             DynamicBondingCurveInstruction::EvtInitializePoolEvent => evt_initialize_pool_event::EvtInitializePoolEvent,
+            DynamicBondingCurveInstruction::EvtInitializePoolWithTransferHookEvent => evt_initialize_pool_with_transfer_hook_event::EvtInitializePoolWithTransferHookEvent,
             DynamicBondingCurveInstruction::EvtPartnerMetadataEvent => evt_partner_metadata_event::EvtPartnerMetadataEvent,
             DynamicBondingCurveInstruction::EvtPartnerWithdrawMigrationFeeEvent => evt_partner_withdraw_migration_fee_event::EvtPartnerWithdrawMigrationFeeEvent,
             DynamicBondingCurveInstruction::EvtPartnerWithdrawSurplusEvent => evt_partner_withdraw_surplus_event::EvtPartnerWithdrawSurplusEvent,
