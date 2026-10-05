@@ -4,6 +4,7 @@ use carbon_core::deserialize::CarbonDeserialize;
 use super::DynamicBondingCurveDecoder;
 pub mod claim_fee_operator;
 pub mod config;
+pub mod config_with_transfer_hook;
 pub mod lock_escrow;
 pub mod meteora_damm_migration_metadata;
 pub mod meteora_damm_v2_metadata;
@@ -17,6 +18,7 @@ pub mod virtual_pool_metadata;
 pub enum DynamicBondingCurveAccount {
     ClaimFeeOperator(claim_fee_operator::ClaimFeeOperator),
     Config(config::Config),
+    ConfigWithTransferHook(config_with_transfer_hook::ConfigWithTransferHook),
     LockEscrow(lock_escrow::LockEscrow),
     MeteoraDammMigrationMetadata(meteora_damm_migration_metadata::MeteoraDammMigrationMetadata),
     MeteoraDammV2Metadata(meteora_damm_v2_metadata::MeteoraDammV2Metadata),
@@ -48,6 +50,18 @@ impl AccountDecoder<'_> for DynamicBondingCurveDecoder {
             return Some(carbon_core::account::DecodedAccount {
                 lamports: account.lamports,
                 data: DynamicBondingCurveAccount::Config(decoded_account),
+                owner: account.owner,
+                executable: account.executable,
+                rent_epoch: account.rent_epoch,
+            });
+        }
+
+        if let Some(decoded_account) =
+            config_with_transfer_hook::ConfigWithTransferHook::deserialize(account.data.as_slice())
+        {
+            return Some(carbon_core::account::DecodedAccount {
+                lamports: account.lamports,
+                data: DynamicBondingCurveAccount::ConfigWithTransferHook(decoded_account),
                 owner: account.owner,
                 executable: account.executable,
                 rent_epoch: account.rent_epoch,
