@@ -9,6 +9,7 @@ pub mod meteora_damm_migration_metadata;
 pub mod meteora_damm_v2_metadata;
 pub mod partner_metadata;
 pub mod pool_config;
+pub mod transfer_hook_pool;
 pub mod virtual_pool;
 pub mod virtual_pool_metadata;
 
