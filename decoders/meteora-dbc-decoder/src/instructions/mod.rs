@@ -28,6 +28,7 @@ pub mod evt_partner_withdraw_migration_fee_event;
 pub mod evt_partner_withdraw_surplus_event;
 pub mod evt_protocol_withdraw_surplus_event;
 pub mod evt_swap2_event;
+pub mod evt_swap2_with_transfer_hook_event;
 pub mod evt_swap_event;
 pub mod evt_update_pool_creator_event;
 pub mod evt_virtual_pool_metadata_event;
@@ -139,6 +140,7 @@ pub enum DynamicBondingCurveInstruction {
     ),
     EvtSwapEvent(evt_swap_event::EvtSwapEvent),
     EvtSwap2Event(evt_swap2_event::EvtSwap2Event),
+    EvtSwap2WithTransferHookEvent(evt_swap2_with_transfer_hook_event::EvtSwap2WithTransferHookEvent),
     EvtUpdatePoolCreatorEvent(evt_update_pool_creator_event::EvtUpdatePoolCreatorEvent),
     EvtVirtualPoolMetadataEvent(evt_virtual_pool_metadata_event::EvtVirtualPoolMetadataEvent),
     EvtWithdrawLeftoverEvent(evt_withdraw_leftover_event::EvtWithdrawLeftoverEvent),
@@ -203,6 +205,7 @@ impl carbon_core::instruction::InstructionDecoder<'_> for DynamicBondingCurveDec
             DynamicBondingCurveInstruction::EvtProtocolWithdrawSurplusEvent => evt_protocol_withdraw_surplus_event::EvtProtocolWithdrawSurplusEvent,
             DynamicBondingCurveInstruction::EvtSwapEvent => evt_swap_event::EvtSwapEvent,
             DynamicBondingCurveInstruction::EvtSwap2Event => evt_swap2_event::EvtSwap2Event,
+            DynamicBondingCurveInstruction::EvtSwap2WithTransferHookEvent => evt_swap2_with_transfer_hook_event::EvtSwap2WithTransferHookEvent,
             DynamicBondingCurveInstruction::EvtUpdatePoolCreatorEvent => evt_update_pool_creator_event::EvtUpdatePoolCreatorEvent,
             DynamicBondingCurveInstruction::EvtVirtualPoolMetadataEvent => evt_virtual_pool_metadata_event::EvtVirtualPoolMetadataEvent,
             DynamicBondingCurveInstruction::EvtWithdrawLeftoverEvent => evt_withdraw_leftover_event::EvtWithdrawLeftoverEvent,
