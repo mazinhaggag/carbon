@@ -5,6 +5,7 @@ pub mod claim_trading_fee;
 pub mod close_claim_fee_operator;
 pub mod create_claim_fee_operator;
 pub mod create_config;
+pub mod create_config_with_transfer_hook;
 pub mod create_locker;
 pub mod create_partner_metadata;
 pub mod create_virtual_pool_metadata;
@@ -66,6 +67,7 @@ pub enum DynamicBondingCurveInstruction {
     CloseClaimFeeOperator(close_claim_fee_operator::CloseClaimFeeOperator),
     CreateClaimFeeOperator(create_claim_fee_operator::CreateClaimFeeOperator),
     CreateConfig(create_config::CreateConfig),
+    CreateConfigWithTransferHook(create_config_with_transfer_hook::CreateConfigWithTransferHook),
     CreateLocker(create_locker::CreateLocker),
     CreatePartnerMetadata(create_partner_metadata::CreatePartnerMetadata),
     CreateVirtualPoolMetadata(create_virtual_pool_metadata::CreateVirtualPoolMetadata),
@@ -161,6 +163,7 @@ impl carbon_core::instruction::InstructionDecoder<'_> for DynamicBondingCurveDec
             DynamicBondingCurveInstruction::CloseClaimFeeOperator => close_claim_fee_operator::CloseClaimFeeOperator,
             DynamicBondingCurveInstruction::CreateClaimFeeOperator => create_claim_fee_operator::CreateClaimFeeOperator,
             DynamicBondingCurveInstruction::CreateConfig => create_config::CreateConfig,
+            DynamicBondingCurveInstruction::CreateConfigWithTransferHook => create_config_with_transfer_hook::CreateConfigWithTransferHook,
             DynamicBondingCurveInstruction::CreateLocker => create_locker::CreateLocker,
             DynamicBondingCurveInstruction::CreatePartnerMetadata => create_partner_metadata::CreatePartnerMetadata,
             DynamicBondingCurveInstruction::CreateVirtualPoolMetadata => create_virtual_pool_metadata::CreateVirtualPoolMetadata,
