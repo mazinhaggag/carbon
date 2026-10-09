@@ -15,6 +15,7 @@ pub mod extend_account_event;
 pub mod init_user_volume_accumulator_event;
 pub mod migrate_bonding_curve_creator_event;
 pub mod minimum_distributable_fee_event;
+pub mod post_complete_buy_event;
 pub mod reserved_fee_recipients_event;
 pub mod set_creator_event;
 pub mod set_metaplex_creator_event;

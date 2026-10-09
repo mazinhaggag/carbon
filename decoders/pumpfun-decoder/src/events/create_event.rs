@@ -19,7 +19,19 @@ pub struct CreateEventEvent {
     pub token_program: Pubkey,
     pub is_mayhem_mode: bool,
     pub is_cashback_enabled: bool,
+    /// Appended by pump's Oct 2026 upgrade (coins paired with USDC or another
+    /// pump coin). Read as zero on events emitted before it.
+    pub quote_mint: Pubkey,
+    /// The curve's starting quote reserves, in the quote's units. For a coin
+    /// paired with a pump coin it depends on that coin's price at creation.
+    pub virtual_quote_reserves: u64,
+    pub creator_fee_bps: u64,
+    pub is_holder_reward: bool,
+    pub depth: u8,
 }
+
+/// Bytes the fields appended after `is_cashback_enabled` take.
+const APPENDED_BYTES: usize = 32 + 8 + 8 + 1 + 1;
 
 impl CreateEventEvent {
     pub fn decode(data: &[u8]) -> Option<Self> {
@@ -31,10 +43,63 @@ impl CreateEventEvent {
             return None;
         }
 
-        let mut data_slice = data;
-
-        data_slice = &data_slice[8..];
-
+        // An event emitted before the appended fields existed ends early:
+        // zero-pad it so they read as zero, as the program would.
+        let mut padded = data[8..].to_vec();
+        padded.resize(padded.len() + APPENDED_BYTES, 0);
+        let mut data_slice = padded.as_slice();
         borsh::BorshDeserialize::deserialize(&mut data_slice).ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    fn hex(s: &str) -> Vec<u8> {
+        (0..s.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
+            .collect()
+    }
+
+    /// Yang (7UAzuTP5…, Oct 9 2026), paired with the pump coin Yin: its curve
+    /// starts on reserves set from Yin's price, not pump's 30 SOL.
+    const YANG: &str = concat!(
+        "1b72a94ddeeb63760400000059616e670400000059616e675000000068747470733a2f2f697066732e696f2f69706673",
+        "2f6261666b7265696279746c756b706f6a6b7568776e7373617163656d6a6f6c6d3568617276763263746f6c74756d62",
+        "6c336a7035647a7378336d65601c1bcb9831039b39ba6de77530c3539d8461d4566df18dd747d32cb2eefccf3e5a1bea",
+        "5248869a4562c80f66d80f22f2c3a6b6539eb4ef5dcc8ae99a2bbc963e058245488b35fb6d2e176dcab8979db548919a",
+        "69e8741473459a6fa0f97d4806373e5e2ad4f1ba76177edf08e1e7bc18e920855c9cc229fe53dbaa50c525ea7b25c96a",
+        "000000000010d847e3cf0300b62adf7d168300000078c5fb51d102000080c6a47e8d030006ddf6e1ee758fde18425dbc",
+        "e46ccddab61afc4d83b90d27febdf928d8a18bfc00000c5009dd349d35efb432957f7f1c7e0784f138dbe5d62479fcb1",
+        "02bef7cf876fb62adf7d1683000000000000000000000101",
+    );
+
+    #[test]
+    fn a_coin_paired_with_a_pump_coin_reads_its_quote_and_starting_reserves() {
+        let event = CreateEventEvent::decode(&hex(YANG)).expect("decodes");
+        assert_eq!(
+            event.mint,
+            Pubkey::from_str("7UAzuTP5qzZLfqg79LeYi1D3uRV9QcuFAokqxPYBpump").unwrap()
+        );
+        assert_eq!(
+            event.quote_mint,
+            Pubkey::from_str("q4gNfza48Gg2u1dEeYeE6q9EcYFAPjZSCYivcyPpump").unwrap()
+        );
+        assert_eq!(event.virtual_quote_reserves, 144_132_624_296_630);
+        assert_eq!(event.virtual_sol_reserves, 144_132_624_296_630);
+        assert_eq!(event.virtual_token_reserves, 1_073_000_000_000_000);
+    }
+
+    #[test]
+    fn an_event_from_before_the_appended_fields_reads_them_as_zero() {
+        let full = hex(YANG);
+        let event = CreateEventEvent::decode(&full[..full.len() - APPENDED_BYTES])
+            .expect("decodes");
+        assert_eq!(event.quote_mint, Pubkey::default());
+        assert_eq!(event.virtual_quote_reserves, 0);
+        assert_eq!(event.virtual_sol_reserves, 144_132_624_296_630);
     }
 }

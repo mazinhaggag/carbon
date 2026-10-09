@@ -43,6 +43,7 @@ impl CpiEventRow {
                     "complete_pump_amm_migration_event".to_string()
                 }
                 CpiEvent::CreateEvent(_) => "create_event".to_string(),
+                CpiEvent::PostCompleteBuyEvent(_) => "post_complete_buy_event".to_string(),
                 CpiEvent::DistributeCreatorFeesEvent(_) => {
                     "distribute_creator_fees_event".to_string()
                 }

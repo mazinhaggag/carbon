@@ -32,6 +32,7 @@ pub enum CpiEvent {
         events::complete_pump_amm_migration_event::CompletePumpAmmMigrationEventEvent,
     ),
     CreateEvent(events::create_event::CreateEventEvent),
+    PostCompleteBuyEvent(events::post_complete_buy_event::PostCompleteBuyEventEvent),
     DistributeCreatorFeesEvent(
         events::distribute_creator_fees_event::DistributeCreatorFeesEventEvent,
     ),
@@ -128,6 +129,11 @@ impl CpiEvent {
         }
         if let Some(decoded) = events::create_event::CreateEventEvent::decode(event_data) {
             return Some(CpiEvent::CreateEvent(decoded));
+        }
+        if let Some(decoded) =
+            events::post_complete_buy_event::PostCompleteBuyEventEvent::decode(event_data)
+        {
+            return Some(CpiEvent::PostCompleteBuyEvent(decoded));
         }
         if let Some(decoded) =
             events::distribute_creator_fees_event::DistributeCreatorFeesEventEvent::decode(
